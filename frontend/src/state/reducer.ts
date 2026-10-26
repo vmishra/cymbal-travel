@@ -26,6 +26,10 @@ export function initialState(): AppState {
     mapCities: [],
     modelLabel: null,
     lastChangedId: null,
+    weather: {},
+    packing: null,
+    cost: null,
+    thinking: [],
   }
 }
 
@@ -139,6 +143,26 @@ export function reducer(state: AppState, event: UiEvent): AppState {
 
     case 'toast':
       return { ...state, toasts: [...state.toasts, { id: _toastId++, message: p.message, level: p.level }] }
+
+    case 'thinking_step': {
+      const existing = state.thinking.findIndex((t) => t.label === p.label)
+      const thinking = [...state.thinking]
+      if (existing >= 0) thinking[existing] = { label: p.label, status: p.status }
+      else thinking.push({ label: p.label, status: p.status })
+      return { ...state, thinking }
+    }
+
+    case 'weather_set':
+      return { ...state, weather: { ...state.weather, [p.city]: p } }
+
+    case 'packing_set':
+      return { ...state, packing: p }
+
+    case 'cost_summary':
+      return { ...state, cost: p }
+
+    case 'travel_note':
+      return state
 
     // frame-derived actions
     case 'transcript':

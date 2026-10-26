@@ -1,6 +1,7 @@
-"""The scripted Japan happy path — one continuous narrative: plan -> live-edit ->
-post-sale. Replayed by the sim pipeline (and used to seed the guided demo). Each
-step: {delay_ms, speaker, text, tool, args}. `tool=None` means speak only.
+"""The scripted Japan rehearsal — one continuous narrative: plan → enrich →
+live-edit → ask cost → post-sale. Replayed by the sim pipeline through the SAME
+real tools the live voice uses (no fake delays). Maya speaks chic Hinglish. Each
+step: {delay_ms, speaker, text, tool, args}. tool=None means speak only.
 """
 from __future__ import annotations
 
@@ -18,35 +19,41 @@ REQUIREMENTS = {
 
 SIM_SCRIPT: list[dict] = [
     {"delay_ms": 400, "speaker": "user", "tool": None,
-     "text": "Plan a seven-night, eight-day family trip to Japan from Bangalore, for me "
-             "and my eight-year-old son. Budget around two lakh per person. Cover three or "
-             "four cities, keep it leisurely — I want to see Mount Fuji, ride the bullet "
-             "train, and catch a popular seasonal event."},
+     "text": "Plan a seven-night, eight-day family trip to Japan from Bangalore, for me and my "
+             "eight-year-old son. Budget around two lakh per person. Three or four cities, leisurely — "
+             "I want Mount Fuji, the bullet train, and a popular seasonal event."},
     {"delay_ms": 700, "speaker": "assistant", "tool": "set_trip_requirements", "args": REQUIREMENTS,
-     "text": "Love it — a leisurely eight-day Japan trip for three, with Mount Fuji and the "
-             "bullet train. Let me get to work."},
+     "text": "Ooh, a December Japan trip with the little one — love it! So basically Tokyo, a Fuji day, "
+             "then the bullet train to Kyoto. Ek second, let me put it all together…"},
     {"delay_ms": 600, "speaker": "assistant", "tool": "plan_trip", "args": {},
-     "text": "Firing up the Flights, Hotels, Itinerary and Events agents in parallel, "
+     "text": "Okay so I'm firing up my Flights, Hotels, Itinerary and Events agents in parallel, "
              "grounding in Maps, Search and WeatherNext."},
-    {"delay_ms": 2200, "speaker": "assistant", "tool": None,
-     "text": "Here's your itinerary: Tokyo, a Mount Fuji day from Hakone, then the bullet "
-             "train to Kyoto — all comfortably under budget."},
-    {"delay_ms": 1600, "speaker": "user", "tool": "swap_hotel", "args": {"city": "Tokyo", "tier": "premium"},
-     "text": "Swap the Tokyo hotel for something more premium."},
-    {"delay_ms": 1400, "speaker": "assistant", "tool": "add_dinner",
+    {"delay_ms": 2600, "speaker": "assistant", "tool": None,
+     "text": "Done! Seven nights across Tokyo, Hakone and Kyoto — and trust me, December weather there "
+             "is just gorgeous. All comfortably under your budget."},
+    {"delay_ms": 1500, "speaker": "user", "tool": "get_cost_summary", "args": {},
+     "text": "Nice — what's the total cost looking like?"},
+    {"delay_ms": 900, "speaker": "assistant", "tool": None,
+     "text": "So per person it's about one-point-five lakh — flights and hotels are the big chunks, "
+             "and you've still got room to splurge a little."},
+    {"delay_ms": 1500, "speaker": "user", "tool": "swap_hotel", "args": {"city": "Tokyo", "tier": "premium"},
+     "text": "Let's make the Tokyo hotel a bit more premium."},
+    {"delay_ms": 1300, "speaker": "assistant", "tool": "add_dinner",
      "args": {"city": "Tokyo", "name": "a local ramen house", "day_index": 1},
-     "text": "Done. Adding a ramen dinner on your second night too."},
+     "text": "Done — upgraded to a lovely one near the station. And suno, I'm adding a cosy ramen dinner "
+             "on night two, your son will love it."},
     {"delay_ms": 1400, "speaker": "user", "tool": "add_activity",
      "args": {"city": "Kyoto", "name": "Traditional tea-ceremony experience"},
-     "text": "And add a tea ceremony in Kyoto."},
-    {"delay_ms": 1200, "speaker": "assistant", "tool": None,
-     "text": "Your updated itinerary is ready."},
-    {"delay_ms": 1500, "speaker": "assistant", "tool": "switch_mode", "args": {"mode": "postsale"},
-     "text": "Now let's look at post-sale support."},
+     "text": "Can we add a tea ceremony in Kyoto?"},
+    {"delay_ms": 1300, "speaker": "assistant", "tool": "get_packing_list", "args": {"city": "Kyoto"},
+     "text": "Added! And since Kyoto evenings get crisp in December, here's a quick packing list too."},
+    {"delay_ms": 1600, "speaker": "assistant", "tool": "switch_mode", "args": {"mode": "postsale"},
+     "text": "Now let me show you how I handle things after you've booked."},
     {"delay_ms": 1200, "speaker": "user", "tool": "report_disruption", "args": {},
-     "text": "My Tokyo flight is delayed — find me alternatives."},
+     "text": "My Tokyo flight got delayed — can you fix it?"},
     {"delay_ms": 1600, "speaker": "user", "tool": "rebook_flight", "args": {"tier": "comfort"},
-     "text": "Rebook me on the next good option."},
+     "text": "Rebook me on the next good one."},
     {"delay_ms": 900, "speaker": "assistant", "tool": None,
-     "text": "You're rebooked, and your itinerary has healed around the new flight."},
+     "text": "Sorted! You're rebooked and your whole itinerary has healed around the new flight. "
+             "Anything else, main yahin hoon."},
 ]

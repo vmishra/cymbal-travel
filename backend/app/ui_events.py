@@ -59,6 +59,10 @@ def options_show(category: str, options: list) -> Event:
     }}
 
 
+def options_clear() -> Event:
+    return {"type": "options_clear", "payload": {}}
+
+
 def option_selected(item) -> Event:
     return {"type": "option_selected", "payload": {"item": item.model_dump()}}
 

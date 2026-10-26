@@ -5,22 +5,21 @@ test('voice planning → live-edit → post-sale, driven by sim mode', async ({ 
   page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()) })
 
   await page.goto('/?fast=1')
-  // hero before start
   await page.screenshot({ path: 'test-results/screens/01-hero.png', fullPage: true })
 
   await page.getByRole('button', { name: 'Start' }).click()
 
-  // itinerary materializes and the orchestration completes
+  // itinerary builds with rich detail
   await expect(page.getByTestId('workspace')).toBeVisible()
-  await expect(page.locator('[data-agent="Flights"]')).toHaveAttribute('data-status', 'done')
-  await expect(page.locator('[data-agent="Events"]')).toHaveAttribute('data-status', 'done')
-
-  // live-edit beats
+  await expect(page.getByTestId('itinerary')).toBeVisible()
   await expect(page.getByText('Dinner at a local ramen house')).toBeVisible()
   await expect(page.getByText('Traditional tea-ceremony experience')).toBeVisible()
+  // enrichment surfaced
+  await expect(page.getByTestId('cost')).toBeVisible()
+  await expect(page.getByTestId('packing')).toBeVisible()
 
-  // post-sale: mode flips, disruption handled, rebooked
-  await expect(page.getByTestId('postsale')).toBeVisible()
+  // post-sale: disruption handled + rebooked
+  await expect(page.getByTestId('disruption')).toBeVisible()
   await expect(page.getByText('Flight rebooked')).toBeVisible()
 
   await page.screenshot({ path: 'test-results/screens/03-postsale.png', fullPage: true })
@@ -30,9 +29,9 @@ test('voice planning → live-edit → post-sale, driven by sim mode', async ({ 
 test('captures a planner screenshot mid-flow', async ({ page }) => {
   await page.goto('/?fast=0')
   await page.getByRole('button', { name: 'Start' }).click()
-  // after the orchestration completes but before post-sale
-  await expect(page.locator('[data-agent="Events"]')).toHaveAttribute('data-status', 'done', { timeout: 20_000 })
-  await expect(page.getByTestId('itinerary')).toBeVisible()
-  await page.waitForTimeout(500)
+  await expect(page.getByTestId('itinerary')).toBeVisible({ timeout: 20_000 })
+  // wait for the plan to compose and cards to appear
+  await expect(page.getByTestId('cost')).toBeVisible({ timeout: 20_000 })
+  await page.waitForTimeout(600)
   await page.screenshot({ path: 'test-results/screens/02-planner.png', fullPage: true })
 })

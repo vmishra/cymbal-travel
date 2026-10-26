@@ -275,7 +275,7 @@ def _h_select_option(args, session):
     city = session.trip.days[day_index].city if session.trip.days else "Tokyo"
     item = _item_from_option(opt, city, day_index)
     session.add_item(day_index, item)
-    return {"ok": True, "item": item.model_dump()}, [ev.option_selected(item), ev.item_add(day_index, item), ev.budget_update(session.trip)]
+    return {"ok": True, "item": item.model_dump()}, [ev.option_selected(item), ev.item_add(day_index, item), ev.budget_update(session.trip), ev.options_clear()]
 
 
 def _item_from_option(opt: Option, city: str, day_index: int):
@@ -399,7 +399,8 @@ def _h_rebook_flight(args, session):
     session.rebook_flight(flight.id, opt)
     new_item = _find_item(session.trip, flight.id)
     return {"ok": True, "flight": opt.name}, [
-        ev.item_swap(new_item), ev.budget_update(session.trip),
+        ev.options_clear(), ev.item_swap(new_item), ev.budget_update(session.trip),
+        ev.cost_summary(session.trip),
         ev.support_card("Flight rebooked", f"You're now on {opt.name}.", "success"),
     ]
 
@@ -499,7 +500,7 @@ def _add_from_last(args, session, prefer):
     item = _item_from_option(opt, city, day_index)
     session.add_item(day_index, item)
     return ({"ok": True, "added": opt.name},
-            [ev.item_add(day_index, item), ev.budget_update(session.trip), ev.cost_summary(session.trip)])
+            [ev.item_add(day_index, item), ev.budget_update(session.trip), ev.cost_summary(session.trip), ev.options_clear()])
 
 
 def _h_add_flight(args, session):

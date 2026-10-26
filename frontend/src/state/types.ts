@@ -7,13 +7,23 @@ export interface Traveller { type: 'adult' | 'child'; age?: number | null }
 
 export type ItemKind = 'flight' | 'hotel' | 'activity' | 'event' | 'transfer'
 
-interface BaseItem { id: string; title: string; price_inr: number }
-export interface Flight extends BaseItem { kind: 'flight'; airline: string; origin: string; destination: string; depart: string; arrive: string; tier: Tier }
+export type Slot = 'morning' | 'afternoon' | 'evening'
+
+interface BaseItem { id: string; title: string; price_inr: number; description?: string }
+export interface Flight extends BaseItem { kind: 'flight'; airline: string; origin: string; destination: string; depart: string; arrive: string; tier: Tier; duration?: string; stops?: string }
 export interface HotelStay extends BaseItem { kind: 'hotel'; hotel: string; city: string; nights: number; check_in: string; tier: Tier }
-export interface Activity extends BaseItem { kind: 'activity'; city: string; time?: string | null }
-export interface EventItem extends BaseItem { kind: 'event'; city: string; date?: string | null }
+export interface Activity extends BaseItem { kind: 'activity'; city: string; time?: string | null; duration?: string; slot?: Slot | null }
+export interface EventItem extends BaseItem { kind: 'event'; city: string; date?: string | null; slot?: Slot | null }
 export interface Transfer extends BaseItem { kind: 'transfer'; mode: string; origin: string; destination: string }
 export type Item = Flight | HotelStay | Activity | EventItem | Transfer
+
+export interface Weather { city: string; month?: string; condition: string; icon: string; high_c: number; low_c: number; summary: string }
+export interface Packing { city: string; condition: string; icon: string; items: string[]; note: string }
+export interface Cost {
+  breakdown: { flights: number; hotels: number; activities: number; events: number; transfers: number }
+  per_person: number; party_total: number; travellers: number; budget_per_person: number; over: boolean
+}
+export interface ThinkingStep { label: string; status: 'running' | 'done' }
 
 export interface Day { index: number; city: string; items: Item[] }
 
@@ -40,6 +50,9 @@ export interface Option {
   rating: number
   highlights: string[]
   image_url: string
+  description?: string
+  duration?: string
+  why?: string
 }
 
 export interface TripBrief {
@@ -82,6 +95,10 @@ export interface AppState {
   mapCities: string[]
   modelLabel: string | null
   lastChangedId: string | null
+  weather: Record<string, Weather>
+  packing: Packing | null
+  cost: Cost | null
+  thinking: ThinkingStep[]
 }
 
 // A reducer action is either a UI event {type,payload} or a frame-derived action.
