@@ -84,5 +84,13 @@ export function useGeminiLiveVoice(onFrame: (f: Frame) => void) {
     setState('thinking')
   }, [])
 
-  return { state, error, start, stop, sendText }
+  // Client-initiated tool call on the live session (e.g. tap-to-select), so the
+  // backend stays authoritative rather than the UI mutating locally.
+  const sendTool = useCallback((name: string, args: Record<string, unknown>) => {
+    refs.current.sock?.sendJson({ kind: 'tool', name, args })
+  }, [])
+
+  const isLive = () => refs.current.sock != null
+
+  return { state, error, start, stop, sendText, sendTool, isLive }
 }

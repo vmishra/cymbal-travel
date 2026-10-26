@@ -61,13 +61,21 @@ export default function App() {
   }, [draft, voice])
 
   const selectOption = useCallback((id: string) => {
+    // Voice mode: route through the backend (authoritative session) so state can't
+    // diverge. Sim mode: the session is ephemeral and emits no further events, so a
+    // local add is safe and keeps the scripted demo interactive.
+    if (source === 'voice') {
+      voice.sendTool('select_option', { option_id: id })
+      dispatch({ type: 'options_clear' })
+      return
+    }
     const opt = state.options?.options.find((o) => o.id === id)
     if (!opt || !state.trip) return
     const dayIndex = state.trip.days.length - 1
     const city = state.trip.days[dayIndex]?.city ?? opt.name
     dispatch({ type: 'item_add', payload: { day_index: dayIndex, item: optionToItem(opt, city) } })
     dispatch({ type: 'options_clear' })
-  }, [state.options, state.trip])
+  }, [source, voice, state.options, state.trip])
 
   const orbState: OrbState = useMemo(() => {
     if (source === 'voice') return voice.state
@@ -153,7 +161,7 @@ export default function App() {
 
       <footer className="mx-auto max-w-6xl px-4 pb-4">
         <TranscriptRail lines={state.transcript} />
-        {source === 'voice' && (
+        {source === 'voice' && running && (
           <form onSubmit={sendDraft} className="mt-2 flex gap-2">
             <input
               value={draft}

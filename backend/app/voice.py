@@ -57,7 +57,7 @@ async def voice_ws(ws: WebSocket) -> None:
         async with client.aio.live.connect(model=model, config=live_config(model)) as live:
             await ws.send_json({"kind": "ready", "model_label": model_label(model)})
             await asyncio.gather(
-                _upstream(ws, live, stop),
+                _upstream(ws, live, session, stop),
                 _downstream(ws, live, session, stop),
             )
     except WebSocketDisconnect:
@@ -75,7 +75,7 @@ async def voice_ws(ws: WebSocket) -> None:
             pass
 
 
-async def _upstream(ws: WebSocket, live, stop: asyncio.Event) -> None:
+async def _upstream(ws: WebSocket, live, session: ItinerarySession, stop: asyncio.Event) -> None:
     try:
         while not stop.is_set():
             msg = await ws.receive()
@@ -93,6 +93,12 @@ async def _upstream(ws: WebSocket, live, stop: asyncio.Event) -> None:
                         turns=[types.Content(role="user", parts=[types.Part(text=data["data"])])],
                         turn_complete=True,
                     )
+                elif kind == "tool" and data.get("name"):
+                    # Client-initiated tool (e.g. tap-to-select) runs on the same
+                    # authoritative session and streams its UI events back.
+                    _result, events = dispatch(data["name"], data.get("args", {}), session)
+                    for event in events:
+                        await ws.send_json({"kind": "ui", "event": event})
                 elif kind == "end":
                     break
     finally:

@@ -19,7 +19,7 @@ function loadMaps(apiKey: string): Promise<void> {
   return scriptPromise
 }
 
-export function GoogleMapView({ apiKey, pins }: { apiKey: string; pins: MapPin[] }) {
+export function GoogleMapView({ apiKey, pins, onError }: { apiKey: string; pins: MapPin[]; onError?: () => void }) {
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -27,6 +27,7 @@ export function GoogleMapView({ apiKey, pins }: { apiKey: string; pins: MapPin[]
     loadMaps(apiKey).then(() => {
       if (cancelled || !ref.current) return
       const g = (window as any).google
+      if (!g?.maps) { onError?.(); return }
       const center = pins.length ? { lat: pins[0].lat, lng: pins[0].lng } : { lat: 20, lng: 100 }
       const map = new g.maps.Map(ref.current, { center, zoom: 5, disableDefaultUI: true })
       const bounds = new g.maps.LatLngBounds()
@@ -41,9 +42,9 @@ export function GoogleMapView({ apiKey, pins }: { apiKey: string; pins: MapPin[]
         })
         map.fitBounds(bounds)
       }
-    }).catch(() => { /* fall back silently; static map should be used instead */ })
+    }).catch(() => { if (!cancelled) onError?.() })
     return () => { cancelled = true }
-  }, [apiKey, pins])
+  }, [apiKey, pins, onError])
 
   return <div data-testid="google-map" ref={ref} className="h-[170px] w-full overflow-hidden rounded-xl ring-1 ring-line" />
 }

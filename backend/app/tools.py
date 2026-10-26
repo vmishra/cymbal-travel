@@ -169,6 +169,13 @@ def dispatch(name: str, args: dict, session: ItinerarySession) -> tuple[dict, li
         return handler(args, session)
     except ItineraryError as e:
         return {"ok": False, "reason": e.reason}, [ev.toast(e.reason, "warn")]
+    except Exception:
+        # Never let a handler error tear down the live voice session (e.g. an edit
+        # fired before a trip exists). Keep the session alive and nudge the user.
+        return (
+            {"ok": False, "reason": "could not complete that"},
+            [ev.toast("I couldn't do that yet — tell me your trip first.", "warn")],
+        )
 
 
 def _h_set_requirements(args, session):
