@@ -13,17 +13,10 @@ from .system_prompt import build_system_instruction
 from .tools import TOOL_DECLARATIONS
 
 MODEL_3_8 = "gemini-3.8-live"
-MODEL_2_5 = "gemini-2.5-flash-native-audio-latest"
-# On the AI Studio (API-key) path, use 3.8-live (the 2.5 native-audio model is a Vertex
-# model and does not work reliably on the Developer API). Set GEMINI_LIVE_MODEL to
-# gemini-2.5-flash-native-audio-latest only when running against Vertex.
-DEFAULT_MODEL = MODEL_3_8
-VOICE_NAME = "Aoede"  # female HD voice. Never a male voice (Charon/Puck/Fenrir) or Kore/Sulafat.
-LANGUAGE_CODE = "en-IN"  # Indian English hint to curb accent/language drift.
-
-# Domain words to bias speech recognition (3.8 custom_vocabulary).
-CUSTOM_VOCAB = ["Cymbal Travels", "Maya", "Hinglish", "Tokyo", "Hakone", "Kyoto",
-                "Bangalore", "bullet train", "ryokan", "onsen", "itinerary"]
+MODEL_2_5 = "gemini-live-2.5-flash-native-audio"  # Vertex native-audio (the gold standard)
+# Default to the 2.5 native-audio model on Vertex — the reliable, natural experience.
+DEFAULT_MODEL = MODEL_2_5
+VOICE_NAME = "Kore"  # female HD voice, calm/firm register — suits a poised travel agent.
 
 _JSON_TO_TYPE = {
     "object": types.Type.OBJECT,
@@ -44,8 +37,11 @@ def is_38(model: str) -> bool:
 
 
 def model_label(model: str) -> str:
-    """Branded only for 3.8; the fallback is narrated generically (never '3.8')."""
-    return "Gemini 3.8 Live" if is_38(model) else "Gemini Live"
+    if is_38(model):
+        return "Gemini 3.8 Live"
+    if "2.5" in model:
+        return "Gemini 2.5 Native Audio"
+    return "Gemini Live"
 
 
 def tool_behavior(model: str) -> dict:

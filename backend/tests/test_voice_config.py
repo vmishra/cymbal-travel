@@ -6,14 +6,14 @@ from app.live_config import (
 )
 
 
-def test_default_model_is_3_8_on_api_key(monkeypatch):
+def test_default_model_is_2_5_native_audio(monkeypatch):
     monkeypatch.delenv("GEMINI_LIVE_MODEL", raising=False)
-    assert resolve_model() == "gemini-3.8-live"
+    assert resolve_model() == "gemini-live-2.5-flash-native-audio"
 
 
 def test_model_is_env_overridable(monkeypatch):
-    monkeypatch.setenv("GEMINI_LIVE_MODEL", "gemini-2.5-flash-native-audio-latest")
-    assert resolve_model() == "gemini-2.5-flash-native-audio-latest"
+    monkeypatch.setenv("GEMINI_LIVE_MODEL", "gemini-3.8-live")
+    assert resolve_model() == "gemini-3.8-live"
 
 
 def test_live_config_omits_affective_and_thinking():
@@ -36,8 +36,8 @@ def test_live_config_includes_tool_declarations():
     assert "plan_trip" in names
 
 
-def test_fallback_model_label_is_generic():
-    assert model_label("gemini-live-2.5-flash-native-audio") == "Gemini Live"
+def test_2_5_label():
+    assert model_label("gemini-live-2.5-flash-native-audio") == "Gemini 2.5 Native Audio"
 
 
 def test_3_8_label_is_branded():

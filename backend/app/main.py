@@ -7,8 +7,16 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 # Load ThinkTravel/.env (two levels up from this file) so running the backend
-# directly — not only via start.sh — picks up GOOGLE_API_KEY etc.
+# directly — not only via start.sh — picks up GOOGLE_API_KEY / Vertex settings.
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+
+# Point SSL at certifi's CA bundle so the Vertex Live websocket verifies on macOS.
+try:
+    import certifi
+    os.environ.setdefault("SSL_CERT_FILE", certifi.where())
+    os.environ.setdefault("SSL_CERT_DIR", os.path.dirname(certifi.where()))
+except Exception:
+    pass
 
 from fastapi import FastAPI, Response, WebSocket, WebSocketDisconnect  # noqa: E402
 from fastapi.responses import FileResponse  # noqa: E402

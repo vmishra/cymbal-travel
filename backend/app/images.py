@@ -112,7 +112,8 @@ def generate(prompt: str, slug: str) -> bool:
         from google.genai import types
     except Exception:
         return False
-    client = genai.Client(api_key=key)
+    # Images always use AI Studio (API key), even when voice runs on Vertex.
+    client = genai.Client(vertexai=False, api_key=key)
     for model in IMAGE_MODELS:
         try:
             resp = client.models.generate_content(

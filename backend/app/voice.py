@@ -49,10 +49,28 @@ def _api_key() -> str | None:
     )
 
 
+def _use_vertex() -> bool:
+    return os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "").lower() in ("1", "true", "yes")
+
+
 def live_client() -> genai.Client:
+    # Fix macOS SSL cert verification for the Live websocket.
+    try:
+        import certifi
+        os.environ.setdefault("SSL_CERT_FILE", certifi.where())
+        os.environ.setdefault("SSL_CERT_DIR", os.path.dirname(certifi.where()))
+    except Exception:
+        pass
+    if _use_vertex():
+        return genai.Client(
+            vertexai=True,
+            project=os.environ.get("GOOGLE_CLOUD_PROJECT"),
+            location=os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1"),
+            http_options=types.HttpOptions(api_version="v1beta1"),
+        )
     key = _api_key()
     if not key:
-        raise RuntimeError("no_api_key")
+        raise RuntimeError("no_credentials")
     return genai.Client(api_key=key, http_options=types.HttpOptions(api_version="v1alpha"))
 
 
@@ -62,7 +80,7 @@ async def voice_ws(ws: WebSocket) -> None:
     try:
         client = live_client()
     except RuntimeError:
-        await ws.send_json({"kind": "error", "message": "Voice needs GOOGLE_API_KEY — use Sim mode."})
+        await ws.send_json({"kind": "error", "message": "Voice unavailable — check credentials, or use Sim mode."})
         await ws.close()
         return
 
