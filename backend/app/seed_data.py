@@ -64,3 +64,14 @@ GENERIC_EVENTS = [
     "Riverside Light Festival",
     "Local Culture Carnival",
 ]
+
+# Coordinates for map pins (curated cities + common Indian origins).
+CITY_COORDS = {
+    "Tokyo": (35.6762, 139.6503),
+    "Hakone": (35.2324, 139.1069),
+    "Kyoto": (35.0116, 135.7681),
+    "Osaka": (34.6937, 135.5023),
+    "Bangalore": (12.9716, 77.5946),
+    "Delhi": (28.6139, 77.2090),
+}
+
