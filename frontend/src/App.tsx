@@ -8,6 +8,8 @@ import { TranscriptRail } from './components/TranscriptRail'
 import { VoiceOrb, type OrbState } from './components/VoiceOrb'
 import { OrchestrationPanel } from './components/OrchestrationPanel'
 import { TripMap } from './components/TripMap'
+import { OptionsCarousel } from './components/OptionsCarousel'
+import type { Item, Option } from './state/types'
 
 type Source = 'sim' | 'voice'
 
@@ -40,6 +42,15 @@ export default function App() {
     sockRef.current = null
     setRunning(false)
   }, [])
+
+  const selectOption = useCallback((id: string) => {
+    const opt = state.options?.options.find((o) => o.id === id)
+    if (!opt || !state.trip) return
+    const dayIndex = state.trip.days.length - 1
+    const city = state.trip.days[dayIndex]?.city ?? opt.name
+    dispatch({ type: 'item_add', payload: { day_index: dayIndex, item: optionToItem(opt, city) } })
+    dispatch({ type: 'options_clear' })
+  }, [state.options, state.trip])
 
   const orbState: OrbState = useMemo(() => {
     if (!running) return 'idle'
@@ -86,6 +97,16 @@ export default function App() {
         <main className="mx-auto grid max-w-6xl grid-cols-1 gap-4 p-4 lg:grid-cols-[1fr_360px]" data-testid="workspace">
           <section className="rounded-2xl bg-card p-5 shadow-sm ring-1 ring-line">
             {state.brief && <div className="mb-4"><TripBrief brief={state.brief} /></div>}
+            {state.options && (
+              <div className="mb-4">
+                <OptionsCarousel
+                  category={state.options.category}
+                  options={state.options.options}
+                  onSelect={selectOption}
+                  onDismiss={() => dispatch({ type: 'options_clear' })}
+                />
+              </div>
+            )}
             {state.trip
               ? <Itinerary trip={state.trip} lastChangedId={state.lastChangedId} />
               : <div className="py-16 text-center text-muted">Composing your itinerary…</div>}
@@ -113,6 +134,17 @@ export default function App() {
       </footer>
     </div>
   )
+}
+
+function optionToItem(opt: Option, city: string): Item {
+  const base = { id: `${opt.id}-sel`, title: opt.name, price_inr: opt.price_inr }
+  switch (opt.category) {
+    case 'hotel': return { ...base, kind: 'hotel', hotel: opt.name, city, nights: 2, check_in: '', tier: opt.tier }
+    case 'flight': return { ...base, kind: 'flight', airline: opt.name, origin: '', destination: city, depart: '', arrive: '', tier: opt.tier }
+    case 'event': return { ...base, kind: 'event', city, date: '' }
+    case 'transfer': return { ...base, kind: 'transfer', mode: opt.name, origin: '', destination: city }
+    default: return { ...base, kind: 'activity', city }
+  }
 }
 
 function Toggle<T extends string>({ value, options, onChange }: {

@@ -119,6 +119,9 @@ export function reducer(state: AppState, event: UiEvent): AppState {
     case 'options_show':
       return { ...state, options: { category: p.category, options: p.options } }
 
+    case 'options_clear':
+      return { ...state, options: null }
+
     case 'budget_update':
       return { ...state, budget: { per_person_total: p.per_person_total, budget_per_person: p.budget_per_person, over: p.over } }
 
