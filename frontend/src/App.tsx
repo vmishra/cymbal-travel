@@ -6,7 +6,7 @@ import { Itinerary } from './components/Itinerary'
 import { BudgetMeter } from './components/BudgetMeter'
 import { TranscriptRail } from './components/TranscriptRail'
 import { VoiceOrb, type OrbState } from './components/VoiceOrb'
-import { AGENT_COLOR } from './theme'
+import { OrchestrationPanel } from './components/OrchestrationPanel'
 
 type Source = 'sim' | 'voice'
 
@@ -91,19 +91,7 @@ export default function App() {
           </section>
 
           <aside className="flex flex-col gap-4">
-            <div data-testid="orchestration" className="rounded-2xl bg-card p-4 shadow-sm ring-1 ring-line">
-              <div className="mb-2 text-sm font-medium text-muted">Under the hood</div>
-              {Object.entries(state.agents).map(([name, status]) => (
-                <div key={name} data-agent={name} data-status={status}
-                  className="flex items-center justify-between py-1 text-sm">
-                  <span className="flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full" style={{ background: AGENT_COLOR[name] }} />
-                    {name}
-                  </span>
-                  <span className="text-muted">{status}</span>
-                </div>
-              ))}
-            </div>
+            <OrchestrationPanel agents={state.agents} grounding={state.grounding} />
             {state.budget && (
               <div className="rounded-2xl bg-card p-4 shadow-sm ring-1 ring-line"><BudgetMeter budget={state.budget} /></div>
             )}
