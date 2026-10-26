@@ -6,8 +6,13 @@ from app.live_config import (
 )
 
 
-def test_live_config_uses_gemini_3_8_live(monkeypatch):
+def test_default_model_is_2_5_gold_standard(monkeypatch):
     monkeypatch.delenv("GEMINI_LIVE_MODEL", raising=False)
+    assert resolve_model() == "gemini-2.5-flash-native-audio-latest"
+
+
+def test_model_is_env_overridable_to_3_8(monkeypatch):
+    monkeypatch.setenv("GEMINI_LIVE_MODEL", "gemini-3.8-live")
     assert resolve_model() == "gemini-3.8-live"
 
 

@@ -26,6 +26,27 @@ def test_postsale_disruption_then_rebook_heals():
     assert "support_card" in _types(r_events)
 
 
+def test_reschedule_then_rebook_books_end_to_end():
+    s = ItinerarySession()
+    dispatch("get_trip_status", {}, s)
+    r1, e1 = dispatch("reschedule_flight", {"when": "next morning"}, s)
+    assert r1["status"] == "ok" and r1["options"]
+    assert "options_show" in _types(e1)
+    r2, e2 = dispatch("rebook_flight", {"tier": "comfort"}, s)
+    assert r2["status"] == "ok" and r2.get("booking_ref", "").startswith("CYMBAL-")
+    assert "support_card" in _types(e2)
+
+
+def test_failures_are_informative_not_empty():
+    # Gemini 3.8 anti-sweep: every failure must carry status + retryable + message.
+    s = ItinerarySession()
+    for tool in ("swap_hotel", "get_cost_summary", "remove_item"):
+        result, _ = dispatch(tool, {"item_id": "nope"}, s)
+        assert result["status"] in ("error", "invalid_argument", "no_results")
+        assert result["retryable"] is False
+        assert result["message"]
+
+
 def test_postsale_refund_emits_support_card():
     s = ItinerarySession()
     dispatch("get_trip_status", {}, s)

@@ -48,12 +48,15 @@ SIM_SCRIPT: list[dict] = [
     {"delay_ms": 1300, "speaker": "assistant", "tool": "get_packing_list", "args": {"city": "Kyoto"},
      "text": "Added! And since Kyoto evenings get crisp in December, here's a quick packing list too."},
     {"delay_ms": 1600, "speaker": "assistant", "tool": "switch_mode", "args": {"mode": "postsale"},
-     "text": "Now let me show you how I handle things after you've booked."},
-    {"delay_ms": 1200, "speaker": "user", "tool": "report_disruption", "args": {},
-     "text": "My Tokyo flight got delayed — can you fix it?"},
-    {"delay_ms": 1600, "speaker": "user", "tool": "rebook_flight", "args": {"tier": "comfort"},
-     "text": "Rebook me on the next good one."},
+     "text": "And once you've booked, you can just call me to change things — dekhiye."},
+    {"delay_ms": 1200, "speaker": "user", "tool": "reschedule_flight", "args": {"when": "a later flight"},
+     "text": "Actually, can you move my Tokyo flight to a later one?"},
+    {"delay_ms": 1800, "speaker": "assistant", "tool": None,
+     "text": "Ek second… okay, I found a few later options. The comfort non-stop looks best for you — "
+             "shall I lock it in?"},
+    {"delay_ms": 1400, "speaker": "user", "tool": "rebook_flight", "args": {"tier": "comfort"},
+     "text": "Perfect, book that one."},
     {"delay_ms": 900, "speaker": "assistant", "tool": None,
-     "text": "Sorted! You're rebooked and your whole itinerary has healed around the new flight. "
+     "text": "Done! You're rebooked end-to-end — your confirmation reference is on screen. "
              "Anything else, main yahin hoon."},
 ]

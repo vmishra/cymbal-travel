@@ -121,6 +121,19 @@ async def _upstream(ws: WebSocket, live, session: ItinerarySession, stop: asynci
 
 
 async def _downstream(ws: WebSocket, live, session: ItinerarySession, stop: asyncio.Event) -> None:
+    # Transcriptions arrive as streaming deltas. Accumulate per role and emit ONE
+    # clean caption per role per turn (user line when the model starts replying,
+    # assistant line at turn end) so the UI never shows growing/duplicated text.
+    in_buf: list[str] = []
+    out_buf: list[str] = []
+    user_sent = False
+
+    async def flush_user():
+        nonlocal user_sent
+        if in_buf and not user_sent:
+            await ws.send_json({"kind": "transcript", "role": "user", "data": "".join(in_buf).strip()})
+            user_sent = True
+
     try:
         while not stop.is_set():
             async for response in live.receive():
@@ -141,12 +154,14 @@ async def _downstream(ws: WebSocket, live, session: ItinerarySession, stop: asyn
                         await ws.send_json({"kind": "interrupted"})
                     it = getattr(sc, "input_transcription", None)
                     if it and getattr(it, "text", None):
-                        await ws.send_json({"kind": "transcript", "role": "user", "data": it.text})
+                        in_buf.append(it.text)
                     ot = getattr(sc, "output_transcription", None)
                     if ot and getattr(ot, "text", None):
-                        await ws.send_json({"kind": "transcript", "role": "assistant", "data": ot.text})
+                        await flush_user()  # the model is replying → the user's turn is done
+                        out_buf.append(ot.text)
 
                 if getattr(response, "data", None):
+                    await flush_user()
                     await ws.send_json({
                         "kind": "audio",
                         "data": base64.b64encode(response.data).decode(),
@@ -154,6 +169,10 @@ async def _downstream(ws: WebSocket, live, session: ItinerarySession, stop: asyn
                     })
 
                 if sc is not None and getattr(sc, "turn_complete", None):
+                    await flush_user()
+                    if out_buf:
+                        await ws.send_json({"kind": "transcript", "role": "assistant", "data": "".join(out_buf).strip()})
+                    in_buf.clear(); out_buf.clear(); user_sent = False
                     await ws.send_json({"kind": "turn_complete"})
     finally:
         stop.set()

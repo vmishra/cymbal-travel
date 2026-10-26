@@ -18,9 +18,8 @@ test('voice planning → live-edit → post-sale, driven by sim mode', async ({ 
   await expect(page.getByTestId('cost')).toBeVisible()
   await expect(page.getByTestId('packing')).toBeVisible()
 
-  // post-sale: disruption handled + rebooked
-  await expect(page.getByTestId('disruption')).toBeVisible()
-  await expect(page.getByText('Flight rebooked')).toBeVisible()
+  // post-sale: flight rescheduled + booked end-to-end
+  await expect(page.getByText(/Flight booked/)).toBeVisible()
 
   await page.screenshot({ path: 'test-results/screens/03-postsale.png', fullPage: true })
   expect(errors, `console errors: ${errors.join('\n')}`).toEqual([])

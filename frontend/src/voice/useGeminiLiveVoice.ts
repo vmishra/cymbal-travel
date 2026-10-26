@@ -50,7 +50,9 @@ export function useGeminiLiveVoice(onFrame: (f: Frame) => void) {
       })
       const micCtx = new AudioContext()
       const srcNode = micCtx.createMediaStreamSource(stream)
-      const proc = micCtx.createScriptProcessor(2048, 1, 1)
+      // Small buffer → ~20-40ms chunks at 44.1/48kHz, per Live API guidance, so
+      // barge-in/interruption is detected promptly.
+      const proc = micCtx.createScriptProcessor(1024, 1, 1)
       proc.onaudioprocess = (e: AudioProcessingEvent) => {
         const pcm = downsampleTo16k(e.inputBuffer.getChannelData(0), micCtx.sampleRate)
         sock.sendBytes(pcm.buffer)

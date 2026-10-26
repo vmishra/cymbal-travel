@@ -197,22 +197,45 @@ def _get_last_option(session: ItinerarySession, option_id: str) -> Option | None
 # --------------------------------------------------------------------------- #
 # dispatch
 # --------------------------------------------------------------------------- #
+# --- informative tool responses (stop Gemini 3.8 "sweeping"/redundant retries) -- #
+def _ok(message: str, **data) -> dict:
+    return {"ok": True, "status": "ok", "retryable": False, "message": message, **data}
+
+
+def _fail(status: str, message: str, retryable: bool = False, **data) -> dict:
+    return {"ok": False, "status": status, "retryable": retryable, "message": message, **data}
+
+
+def _enrich(result: dict) -> dict:
+    """Guarantee every result has status/retryable/message so the model never
+    sweeps on an uninformative response."""
+    if "status" in result and "message" in result:
+        return result
+    ok = result.get("ok", True)
+    out = {**result}
+    out.setdefault("status", "ok" if ok else "error")
+    out.setdefault("retryable", False)
+    out.setdefault("message", result.get("summary") or result.get("reason")
+                   or ("Done." if ok else "I couldn't complete that; ask the traveller to clarify."))
+    return out
+
+
 def dispatch(name: str, args: dict, session: ItinerarySession) -> tuple[dict, list[dict]]:
     args = args or {}
+    handler = _HANDLERS.get(name)
+    if handler is None:
+        return _fail("invalid_argument", f"There is no action '{name}'. Do not retry; continue the conversation."), []
     try:
-        handler = _HANDLERS.get(name)
-        if handler is None:
-            return {"ok": False, "error": f"unknown_tool:{name}"}, []
-        return handler(args, session)
+        result, events = handler(args, session)
+        return _enrich(result), events
     except ItineraryError as e:
-        return {"ok": False, "reason": e.reason}, [ev.toast(e.reason, "warn")]
+        return _fail("invalid_argument",
+                     f"{e.reason}. Tell the traveller and ask them to clarify — do NOT silently retry."), [ev.toast(e.reason, "warn")]
     except Exception:
-        # Never let a handler error tear down the live voice session (e.g. an edit
-        # fired before a trip exists). Keep the session alive and nudge the user.
-        return (
-            {"ok": False, "reason": "could not complete that"},
-            [ev.toast("I couldn't do that yet — tell me your trip first.", "warn")],
-        )
+        # Never tear down the live session; give the model clear, non-retryable guidance.
+        return _fail("error",
+                     "I couldn't do that yet — most likely no trip is set up. Ask the traveller to "
+                     "share their trip first. Do NOT retry this call."), [ev.toast("Let's set up your trip first.", "warn")]
 
 
 def _h_set_requirements(args, session):
@@ -389,21 +412,47 @@ def _h_report_disruption(args, session):
     return {"ok": True, "flight_id": fid}, events
 
 
+def _h_reschedule_flight(args, session):
+    """Customer-initiated flight change: show alternative flights to confirm."""
+    _ensure_postsale_trip(session)
+    flight = _first_flight(session.trip)
+    if flight is None:
+        return _fail("no_results", "There's no flight on this trip to reschedule. Ask the traveller what they'd like to change."), [ev.toast("No flight on this trip.", "warn")]
+    opts = get_flights(session.trip.origin, flight.destination, args.get("when", ""), _pax(session))
+    _set_last_options(session, opts)
+    events = [
+        ev.thinking_step("Finding alternative flights", "running"),
+        ev.agent_status("Flights", "running"), ev.grounding_ping("Search"),
+        ev.options_show("flight", opts),
+        ev.agent_status("Flights", "done"),
+        ev.thinking_step("Finding alternative flights", "done"),
+    ]
+    return _ok(f"Found {len(opts)} alternative flights to {flight.destination}. Tell the traveller the best option "
+               f"and the fare, then ask them to confirm before you book. Do not search again.",
+               options=_opts_summary(opts)), events
+
+
+def _booking_ref() -> str:
+    import random
+    return "CYMBAL-" + "".join(random.choice("ACDEFHJKLMNPRTUVWXY349") for _ in range(4))
+
+
 def _h_rebook_flight(args, session):
     _ensure_postsale_trip(session)
     flight = _find_item(session.trip, args["flight_id"]) if args.get("flight_id") else _first_flight(session.trip)
     if flight is None:
-        return {"ok": False, "reason": "no flight"}, [ev.toast("No flight to rebook", "warn")]
+        return _fail("no_results", "There's no flight to rebook. Ask the traveller which flight they mean."), [ev.toast("No flight to rebook.", "warn")]
     opt = _get_last_option(session, args.get("option_id", "")) or _pick(
-        get_flights(session.trip.origin, flight.destination, session.trip.start_date, max(1, len(session.trip.travellers))),
+        get_flights(session.trip.origin, flight.destination, session.trip.start_date, _pax(session)),
         args.get("tier", "comfort"),
     )
     session.rebook_flight(flight.id, opt)
     new_item = _find_item(session.trip, flight.id)
-    return {"ok": True, "flight": opt.name}, [
-        ev.options_clear(), ev.item_swap(new_item), ev.budget_update(session.trip),
-        ev.cost_summary(session.trip),
-        ev.support_card("Flight rebooked", f"You're now on {opt.name}.", "success"),
+    ref = _booking_ref()
+    return _ok(f"Booked end-to-end. New flight: {opt.name}, {opt.duration}. Confirmation reference {ref}. "
+               f"Read the reference back to the traveller ONE CHARACTER AT A TIME.", flight=opt.name, booking_ref=ref), [
+        ev.options_clear(), ev.item_swap(new_item), ev.budget_update(session.trip), ev.cost_summary(session.trip),
+        ev.support_card("Flight booked ✓", f"You're confirmed on {opt.name}. Reference {ref}.", "success"),
     ]
 
 
@@ -577,6 +626,7 @@ _HANDLERS = {
     "switch_mode": _h_switch_mode,
     "get_trip_status": _h_get_trip_status,
     "report_disruption": _h_report_disruption,
+    "reschedule_flight": _h_reschedule_flight,
     "rebook_flight": _h_rebook_flight,
     "extend_trip": _h_extend_trip,
     "request_refund": _h_request_refund,
@@ -653,9 +703,11 @@ TOOL_DECLARATIONS: list[dict] = [
      "parameters": {"type": "object", "properties": {"mode": _str("plan|postsale")}, "required": ["mode"]}},
     {"name": "get_trip_status", "description": "Show the current booked trip (post-sale).",
      "parameters": {"type": "object", "properties": {}}},
-    {"name": "report_disruption", "description": "Report a flight disruption and fetch alternatives.",
+    {"name": "report_disruption", "description": "Report a flight disruption (delay/cancellation) and fetch alternatives. Invoke when the traveller reports a problem with a booked flight.",
      "parameters": {"type": "object", "properties": {"flight_id": _str("id"), "city": _str("city")}}},
-    {"name": "rebook_flight", "description": "Rebook onto an alternative flight.",
+    {"name": "reschedule_flight", "description": "Customer-initiated flight change: show alternative flights to a new time/day. Invoke when the traveller asks to move/reschedule their flight.",
+     "parameters": {"type": "object", "properties": {"when": _str("new time or day, optional")}}},
+    {"name": "rebook_flight", "description": "Confirm and book one of the shown alternative flights end-to-end. Invoke ONLY after the traveller confirms a specific option.",
      "parameters": {"type": "object", "properties": {"flight_id": _str("id"), "option_id": _str("id"), "tier": _str("tier")}}},
     {"name": "extend_trip", "description": "Add a night to the trip in a city.",
      "parameters": {"type": "object", "properties": {"city": _str("city")}}},
