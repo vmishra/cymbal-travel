@@ -1,5 +1,22 @@
 @import "tailwindcss";
 
+@theme {
+  --color-paper: #f6f8fc;
+  --color-card: #ffffff;
+  --color-ink: #202124;
+  --color-muted: #5f6368;
+  --color-line: #e8eaed;
+  --color-brand: #1a73e8;
+  --color-flight: #1a73e8;
+  --color-hotel: #34a853;
+  --color-activity: #f9ab00;
+  --color-event: #ea4335;
+  --color-transfer: #9334e6;
+  --color-sky: #e8f0fe;
+
+  --font-sans: "Google Sans", "Product Sans", "Segoe UI", system-ui, sans-serif;
+}
+
 :root {
   color-scheme: light;
 }
@@ -12,7 +29,38 @@ body,
 }
 
 body {
-  font-family: "Google Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  background: #ffffff;
-  color: #202124;
+  font-family: var(--font-sans);
+  background: var(--color-paper);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- motion (on change, not decoration) --- */
+@keyframes cardin { from { opacity: 0; transform: translateY(10px) scale(0.98); } to { opacity: 1; transform: none; } }
+@keyframes slidein { from { opacity: 0; transform: translateX(-12px); } to { opacity: 1; transform: none; } }
+@keyframes flashring { 0% { box-shadow: 0 0 0 0 rgba(26,115,232,0); } 50% { box-shadow: 0 0 0 4px rgba(26,115,232,0.30); } 100% { box-shadow: 0 0 0 0 rgba(26,115,232,0); } }
+@keyframes halo { from { transform: scale(0.9); opacity: 0.5; } to { transform: scale(1.55); opacity: 0; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+@keyframes pulselane { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+@keyframes chippop { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+.anim-cardin { animation: cardin 0.42s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.anim-slidein { animation: slidein 0.4s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.anim-flash { animation: flashring 1.1s ease-out; }
+.anim-spin { animation: spin 3s linear infinite; }
+.anim-breathe { animation: breathe 1.6s ease-in-out infinite; }
+.anim-breathe-fast { animation: breathe 0.5s ease-in-out infinite; }
+.anim-pulse { animation: pulselane 1.2s ease-in-out infinite; }
+.anim-chippop { animation: chippop 0.35s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

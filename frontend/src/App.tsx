@@ -1,6 +1,12 @@
-import { useCallback, useReducer, useRef, useState } from 'react'
+import { useCallback, useMemo, useReducer, useRef, useState } from 'react'
 import { initialState, reducer } from './state/reducer'
 import { openSocket, type Frame, type Socket } from './net/socket'
+import { TripBrief } from './components/TripBrief'
+import { Itinerary } from './components/Itinerary'
+import { BudgetMeter } from './components/BudgetMeter'
+import { TranscriptRail } from './components/TranscriptRail'
+import { VoiceOrb, type OrbState } from './components/VoiceOrb'
+import { AGENT_COLOR } from './theme'
 
 type Source = 'sim' | 'voice'
 
@@ -19,7 +25,8 @@ export default function App() {
 
   const start = useCallback(() => {
     sockRef.current?.close()
-    const path = source === 'sim' ? '/api/ws/sim?fast=0' : '/api/ws/voice'
+    const fast = new URLSearchParams(location.search).get('fast') === '1'
+    const path = source === 'sim' ? `/api/ws/sim?fast=${fast ? 1 : 0}` : '/api/ws/voice'
     setRunning(true)
     sockRef.current = openSocket(path, handleFrame, {
       onOpen: () => { if (source === 'sim') sockRef.current?.sendJson({ kind: 'start' }) },
@@ -33,15 +40,24 @@ export default function App() {
     setRunning(false)
   }, [])
 
+  const orbState: OrbState = useMemo(() => {
+    if (!running) return 'idle'
+    const last = state.transcript.at(-1)
+    return last?.role === 'assistant' ? 'speaking' : 'listening'
+  }, [running, state.transcript])
+
+  const started = state.trip || state.brief
+
   return (
-    <div className="min-h-screen bg-[#f8f9fc] text-[#202124]">
-      <header className="flex items-center justify-between border-b border-black/5 bg-white px-6 py-3">
-        <div className="flex items-center gap-3">
-          <span className="text-xl font-semibold tracking-tight">Cymbal Travels</span>
+    <div className="min-h-screen bg-paper text-ink">
+      <header className="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-card/80 px-6 py-3 backdrop-blur">
+        <div className="flex items-center gap-2.5">
+          <span className="grid h-7 w-7 place-items-center rounded-lg bg-brand text-white">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12l18-6-6 18-3-7-9-5z" /></svg>
+          </span>
+          <span className="text-lg font-semibold tracking-tight">Cymbal Travels</span>
           {state.modelLabel && (
-            <span className="rounded-full bg-[#e8f0fe] px-2.5 py-0.5 text-xs font-medium text-[#1a73e8]">
-              {state.modelLabel}
-            </span>
+            <span className="rounded-full bg-sky px-2.5 py-0.5 text-xs font-medium text-brand">{state.modelLabel}</span>
           )}
         </div>
         <div className="flex items-center gap-2 text-sm">
@@ -49,54 +65,57 @@ export default function App() {
             onChange={(m) => dispatch({ type: 'mode_switch', payload: { mode: m } })} />
           <Toggle value={source} options={[['sim', 'Sim'], ['voice', 'Voice']]} onChange={(s) => setSource(s as Source)} />
           {running
-            ? <button onClick={stop} className="rounded-full bg-[#ea4335] px-4 py-1.5 font-medium text-white">Stop</button>
-            : <button onClick={start} className="rounded-full bg-[#1a73e8] px-4 py-1.5 font-medium text-white">Start</button>}
+            ? <button onClick={stop} className="rounded-full bg-event px-4 py-1.5 font-medium text-white transition hover:brightness-95">Stop</button>
+            : <button onClick={start} className="rounded-full bg-brand px-4 py-1.5 font-medium text-white transition hover:brightness-95">Start</button>}
         </div>
       </header>
 
-      <main className="grid grid-cols-1 gap-4 p-4 lg:grid-cols-[1fr_360px]" data-testid="workspace">
-        <section data-testid="itinerary" className="rounded-2xl bg-white p-4 shadow-sm">
-          {state.brief && (
-            <div className="mb-3 text-sm text-black/60">
-              {state.brief.title} · {state.brief.nights} nights · {state.brief.travellers.length} travellers
-            </div>
-          )}
-          {state.trip
-            ? state.trip.days.map((d) => (
-              <div key={d.index} className="mb-2 border-b border-black/5 pb-2">
-                <div className="text-xs font-semibold uppercase tracking-wide text-black/40">Day {d.index + 1} · {d.city}</div>
-                {d.items.map((it) => (
-                  <div key={it.id} data-item-id={it.id} className="py-0.5 text-sm">
-                    {it.title} <span className="text-black/40">₹{it.price_inr.toLocaleString('en-IN')}</span>
-                  </div>
-                ))}
-              </div>
-            ))
-            : <div className="py-16 text-center text-black/40">Press Start and describe your trip.</div>}
-        </section>
-
-        <aside data-testid="orchestration" className="rounded-2xl bg-white p-4 shadow-sm">
-          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-black/40">Under the hood</div>
-          {Object.entries(state.agents).map(([name, status]) => (
-            <div key={name} data-agent={name} data-status={status} className="flex justify-between py-0.5 text-sm">
-              <span>{name}</span><span className="text-black/40">{status}</span>
-            </div>
-          ))}
-          {state.budget && (
-            <div data-testid="budget" className="mt-3 text-sm">
-              ₹{state.budget.per_person_total.toLocaleString('en-IN')} / ₹{state.budget.budget_per_person.toLocaleString('en-IN')} pp
-              {state.budget.over && <span className="ml-1 text-[#ea4335]">over</span>}
-            </div>
-          )}
-        </aside>
-      </main>
-
-      <footer className="px-4 pb-4">
-        <div data-testid="transcript" className="max-h-28 overflow-auto rounded-xl bg-white p-3 text-sm shadow-sm">
-          {state.transcript.slice(-4).map((l) => (
-            <div key={l.id}><span className="font-medium">{l.role}:</span> {l.data}</div>
-          ))}
+      {!started ? (
+        <div className="flex min-h-[70vh] flex-col items-center justify-center gap-6 px-6 text-center">
+          <VoiceOrb state={orbState} onClick={start} size={168} />
+          <div className="max-w-xl">
+            <h1 className="text-3xl font-semibold tracking-tight">Plan your trip, just by talking.</h1>
+            <p className="mt-2 text-muted">
+              Tell Cymbal Travels where you want to go. It plans flights, hotels and a day-by-day
+              itinerary while you watch — then reshapes it on your word.
+            </p>
+          </div>
         </div>
+      ) : (
+        <main className="mx-auto grid max-w-6xl grid-cols-1 gap-4 p-4 lg:grid-cols-[1fr_360px]" data-testid="workspace">
+          <section className="rounded-2xl bg-card p-5 shadow-sm ring-1 ring-line">
+            {state.brief && <div className="mb-4"><TripBrief brief={state.brief} /></div>}
+            {state.trip
+              ? <Itinerary trip={state.trip} lastChangedId={state.lastChangedId} />
+              : <div className="py-16 text-center text-muted">Composing your itinerary…</div>}
+          </section>
+
+          <aside className="flex flex-col gap-4">
+            <div data-testid="orchestration" className="rounded-2xl bg-card p-4 shadow-sm ring-1 ring-line">
+              <div className="mb-2 text-sm font-medium text-muted">Under the hood</div>
+              {Object.entries(state.agents).map(([name, status]) => (
+                <div key={name} data-agent={name} data-status={status}
+                  className="flex items-center justify-between py-1 text-sm">
+                  <span className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full" style={{ background: AGENT_COLOR[name] }} />
+                    {name}
+                  </span>
+                  <span className="text-muted">{status}</span>
+                </div>
+              ))}
+            </div>
+            {state.budget && (
+              <div className="rounded-2xl bg-card p-4 shadow-sm ring-1 ring-line"><BudgetMeter budget={state.budget} /></div>
+            )}
+            <div className="flex justify-center rounded-2xl bg-card p-4 shadow-sm ring-1 ring-line">
+              <VoiceOrb state={orbState} onClick={running ? stop : start} size={96} />
+            </div>
+          </aside>
+        </main>
+      )}
+
+      <footer className="mx-auto max-w-6xl px-4 pb-4">
+        <TranscriptRail lines={state.transcript} />
       </footer>
     </div>
   )
@@ -106,10 +125,10 @@ function Toggle<T extends string>({ value, options, onChange }: {
   value: T; options: [T, string][]; onChange: (v: T) => void
 }) {
   return (
-    <div className="inline-flex rounded-full bg-black/5 p-0.5">
+    <div className="inline-flex rounded-full bg-paper p-0.5 ring-1 ring-line">
       {options.map(([v, label]) => (
         <button key={v} onClick={() => onChange(v)}
-          className={`rounded-full px-3 py-1 ${value === v ? 'bg-white shadow-sm font-medium' : 'text-black/50'}`}>
+          className={`rounded-full px-3 py-1 transition ${value === v ? 'bg-card font-medium shadow-sm' : 'text-muted'}`}>
           {label}
         </button>
       ))}
