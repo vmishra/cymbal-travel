@@ -30,12 +30,16 @@ class Option(BaseModel):
     rating: float = 4.5
     highlights: list[str] = Field(default_factory=list)
     image_url: str = ""
+    description: str = ""
+    duration: str = ""
+    why: str = ""  # why Maya might pick this
 
 
 class _BaseItem(BaseModel):
     id: str
     title: str
     price_inr: int = 0
+    description: str = ""
 
 
 class Flight(_BaseItem):
@@ -46,6 +50,8 @@ class Flight(_BaseItem):
     depart: str
     arrive: str
     tier: Tier = "comfort"
+    duration: str = ""
+    stops: str = "Non-stop"
 
 
 class HotelStay(_BaseItem):
@@ -57,16 +63,22 @@ class HotelStay(_BaseItem):
     tier: Tier = "comfort"
 
 
+Slot = Literal["morning", "afternoon", "evening"]
+
+
 class Activity(_BaseItem):
     kind: Literal["activity"] = "activity"
     city: str
     time: str | None = None
+    duration: str = ""
+    slot: Slot | None = None
 
 
 class Event(_BaseItem):
     kind: Literal["event"] = "event"
     city: str
     date: str | None = None
+    slot: Slot | None = None
 
 
 class Transfer(_BaseItem):
@@ -121,3 +133,22 @@ def per_person_total(trip: Trip) -> int:
 
 def is_over_budget(trip: Trip) -> bool:
     return per_person_total(trip) > trip.budget_per_person
+
+
+def cost_breakdown(trip: Trip) -> dict:
+    """Per-person cost split by category, plus per-person and party totals."""
+    buckets = {"flights": 0, "hotels": 0, "activities": 0, "events": 0, "transfers": 0}
+    key = {"flight": "flights", "hotel": "hotels", "activity": "activities",
+           "event": "events", "transfer": "transfers"}
+    for it in _all_items(trip):
+        buckets[key[it.kind]] += it.price_inr
+    per_person = sum(buckets.values())
+    travellers = max(1, len(trip.travellers))
+    return {
+        "breakdown": buckets,
+        "per_person": per_person,
+        "party_total": per_person * travellers,
+        "travellers": travellers,
+        "budget_per_person": trip.budget_per_person,
+        "over": per_person > trip.budget_per_person,
+    }

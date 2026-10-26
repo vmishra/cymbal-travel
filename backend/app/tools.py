@@ -10,8 +10,26 @@ from __future__ import annotations
 from datetime import date, timedelta
 
 from . import ui_events as ev
-from .domain import Activity, Event, Flight, HotelStay, Option, Transfer, Trip
-from .mock_services import get_activities, get_events, get_flights, get_hotels
+from .domain import (
+    Activity,
+    Event,
+    Flight,
+    HotelStay,
+    Option,
+    Transfer,
+    Trip,
+    cost_breakdown,
+    per_person_total,
+)
+from .mock_services import (
+    get_activities,
+    get_events,
+    get_flights,
+    get_hotels,
+    get_packing_list,
+    get_travel_time,
+    get_weather,
+)
 from .postsale_seed import BOOKED_REQUIREMENTS
 from .seed_data import CITY_COORDS
 from .session import ItineraryError, ItinerarySession
@@ -31,18 +49,29 @@ def _date_plus(start: str, days: int) -> str:
         return start
 
 
+_MONTHS = ["January", "February", "March", "April", "May", "June", "July",
+           "August", "September", "October", "November", "December"]
+
+
+def _month_of(start: str) -> str:
+    try:
+        return _MONTHS[int(start.split("-")[1]) - 1]
+    except Exception:
+        return "your dates"
+
+
 def _pick(options: list[Option], tier: str) -> Option:
     return next((o for o in options if o.tier == tier), options[-1])
 
 
-def _activity_item(opt: Option, city: str, day_index: int, time: str | None = None) -> Activity:
-    return Activity(id=f"{opt.id}-d{day_index}", title=opt.name, price_inr=opt.price_inr,
-                    city=city, time=time)
+def _activity_item(opt: Option, city: str, day_index: int, slot: str = "afternoon") -> Activity:
+    return Activity(id=f"{opt.id}-d{day_index}-{slot}", title=opt.name, price_inr=opt.price_inr,
+                    city=city, time=slot, slot=slot, duration=opt.duration, description=opt.description)
 
 
-def _event_item(opt: Option, city: str, day_index: int, when: str) -> Event:
-    return Event(id=f"{opt.id}-d{day_index}", title=opt.name, price_inr=opt.price_inr,
-                 city=city, date=when)
+def _event_item(opt: Option, city: str, day_index: int, when: str = "") -> Event:
+    return Event(id=f"{opt.id}-d{day_index}-ev", title=opt.name, price_inr=opt.price_inr,
+                 city=city, date=when, slot="evening", description=opt.description)
 
 
 def compose_itinerary(trip: Trip) -> Trip:
@@ -69,9 +98,10 @@ def compose_itinerary(trip: Trip) -> Trip:
     # Arrival flight into the first city.
     fopt = _pick(get_flights(trip.origin, cities[0], trip.start_date, pax), "comfort")
     arrival_flight = Flight(
-        id=fopt.id, title=fopt.name, price_inr=fopt.price_inr,
+        id=fopt.id, title=fopt.name, price_inr=fopt.price_inr, description=fopt.description,
         airline=fopt.name.split(" ")[0], origin=trip.origin, destination=cities[0],
-        depart="08:00", arrive="18:30", tier=fopt.tier,
+        depart="08:00", arrive="18:30", tier=fopt.tier, duration=fopt.duration,
+        stops=fopt.highlights[0] if fopt.highlights else "Non-stop",
     )
 
     for ci, city in enumerate(cities):
@@ -79,27 +109,33 @@ def compose_itinerary(trip: Trip) -> Trip:
         hotel = HotelStay(
             id=hopt.id, title=hopt.name, price_inr=hopt.price_inr, hotel=hopt.name,
             city=city, nights=nights_per[ci], check_in=cur_date, tier=hopt.tier,
+            description=hopt.description,
         )
         acts = get_activities(city)
+        n_acts = len(acts)
 
         first_items: list = []
         if ci == 0:
             first_items.append(arrival_flight)
         else:
+            tt = get_travel_time(cities[ci - 1], city, "train")
             first_items.append(Transfer(
-                id=f"transfer-{ci}", title=f"Bullet train to {city}", price_inr=TRANSFER_PRICE,
-                mode="Bullet train", origin=cities[ci - 1], destination=city,
+                id=f"transfer-{ci}", title=f"Train to {city}", price_inr=TRANSFER_PRICE,
+                mode="High-speed train", origin=cities[ci - 1], destination=city,
+                description=tt["note"],
             ))
         first_items.append(hotel)
-        first_items.append(_activity_item(acts[0], city, day_index))
+        first_items.append(_activity_item(acts[0], city, day_index, "afternoon"))
         days.append(Day(index=day_index, city=city, items=first_items))
         day_index += 1
 
         for n in range(1, nights_per[ci]):
-            items: list = [_activity_item(acts[n % len(acts)], city, day_index)]
+            items: list = [
+                _activity_item(acts[(2 * n) % n_acts], city, day_index, "morning"),
+                _activity_item(acts[(2 * n + 1) % n_acts], city, day_index, "afternoon"),
+            ]
             if not event_added:
-                eopt = _pick(get_events(city), "comfort")
-                items.append(_event_item(eopt, city, day_index, cur_date))
+                items.append(_event_item(_pick(get_events(city), "comfort"), city, day_index, cur_date))
                 event_added = True
             days.append(Day(index=day_index, city=city, items=items))
             day_index += 1
@@ -183,18 +219,36 @@ def _h_set_requirements(args, session):
     return {"ok": True, "requirements": args}, [ev.trip_brief(trip)]
 
 
+PLAN_THINKING = [
+    "Understanding your trip", "Finding the best flights", "Gathering hotel options",
+    "Mapping day-by-day activities", "Checking the weather window", "Finalizing your itinerary",
+]
+
+
 def _h_plan_trip(args, session):
     if session.trip is None:
         return {"ok": False, "reason": "no requirements yet"}, [ev.toast("Tell me your trip first", "warn")]
-    events = [ev.agent_status(a, "running") for a in AGENTS]
+    events: list[dict] = []
+    for step in PLAN_THINKING:
+        events.append(ev.thinking_step(step, "running"))
+    events += [ev.agent_status(a, "running") for a in AGENTS]
     events += [ev.grounding_ping(g) for g in GROUNDING]
+
     trip = compose_itinerary(session.trip)
     session.apply_plan(trip)
+    month = _month_of(trip.start_date)
+
     events += [ev.agent_status(a, "done") for a in AGENTS]
+    events += [ev.thinking_step(step, "done") for step in PLAN_THINKING]
     events.append(ev.itinerary_set(trip))
+    for city in trip.destinations:
+        events.append(ev.weather_set(get_weather(city, month)))
+    events.append(ev.packing_set(get_packing_list(trip.destinations[-1] if trip.destinations else "Tokyo", month)))
+    events.append(ev.cost_summary(trip))
     events.append(ev.budget_update(trip))
     events.append(ev.map_update(list(trip.destinations), _map_pins(trip)))
-    return {"ok": True, "summary": f"{trip.nights}-night {'/'.join(trip.destinations)} trip"}, events
+    return {"ok": True, "summary": f"{trip.nights}-night {'/'.join(trip.destinations)} trip, "
+            f"about ₹{per_person_total(trip):,}/person"}, events
 
 
 def _h_show_options(args, session):
@@ -378,9 +432,135 @@ def _h_add_night(args, session):
     return {"ok": True, "city": city}, [ev.itinerary_set(session.trip), ev.budget_update(session.trip)]
 
 
+def _opts_summary(options):
+    return [{"id": o.id, "name": o.name, "tier": o.tier, "price_inr": o.price_inr,
+             "why": o.why, "duration": o.duration} for o in options]
+
+
+def _search(agent, category, options, session):
+    _set_last_options(session, options)
+    label = {"flight": "flights", "hotel": "hotels", "activity": "activities", "event": "events"}[category]
+    events = [
+        ev.thinking_step(f"Finding {label}", "running"),
+        ev.agent_status(agent, "running"),
+        ev.grounding_ping("Search"), ev.grounding_ping("Maps"),
+        ev.options_show(category, options),
+        ev.agent_status(agent, "done"),
+        ev.thinking_step(f"Finding {label}", "done"),
+    ]
+    return {"ok": True, "options": _opts_summary(options)}, events
+
+
+def _origin(session):
+    return session.trip.origin if session.trip else "Bangalore"
+
+
+def _first_city(session):
+    if session.trip and session.trip.destinations:
+        return session.trip.destinations[0]
+    return "Tokyo"
+
+
+def _pax(session):
+    return max(1, len(session.trip.travellers)) if session.trip else 2
+
+
+def _h_search_flights(args, session):
+    dest = args.get("dest") or _first_city(session)
+    return _search("Flights", "flight",
+                   get_flights(args.get("origin") or _origin(session), dest, args.get("date", ""), _pax(session)),
+                   session)
+
+
+def _h_search_hotels(args, session):
+    city = args.get("city") or _first_city(session)
+    return _search("Hotels", "hotel", get_hotels(city, 3, _pax(session), args.get("vibe")), session)
+
+
+def _h_search_activities(args, session):
+    city = args.get("city") or _first_city(session)
+    return _search("Itinerary", "activity", get_activities(city), session)
+
+
+def _h_search_events(args, session):
+    city = args.get("city") or _first_city(session)
+    return _search("Events", "event", get_events(city, args.get("month")), session)
+
+
+def _add_from_last(args, session, prefer):
+    opts = getattr(session, "last_options", {})
+    opt = opts.get(args.get("option_id", ""))
+    if opt is None:
+        opt = next((o for o in opts.values() if o.category == prefer), None) or next(iter(opts.values()), None)
+    if opt is None or session.trip is None:
+        return {"ok": False, "reason": "search first"}, [ev.toast("Let me search some options first.", "warn")]
+    day_index = 0 if prefer == "flight" else _last_day_index(session.trip, None)
+    city = session.trip.days[day_index].city if session.trip.days else _first_city(session)
+    item = _item_from_option(opt, city, day_index)
+    session.add_item(day_index, item)
+    return ({"ok": True, "added": opt.name},
+            [ev.item_add(day_index, item), ev.budget_update(session.trip), ev.cost_summary(session.trip)])
+
+
+def _h_add_flight(args, session):
+    return _add_from_last(args, session, "flight")
+
+
+def _h_add_hotel(args, session):
+    return _add_from_last(args, session, "hotel")
+
+
+def _h_add_event(args, session):
+    return _add_from_last(args, session, "event")
+
+
+def _h_get_weather(args, session):
+    city = args.get("city") or _first_city(session)
+    month = args.get("month") or (_month_of(session.trip.start_date) if session.trip else "your dates")
+    w = get_weather(city, month)
+    return {"ok": True, "weather": w}, [ev.weather_set(w)]
+
+
+def _h_get_travel_time(args, session):
+    origin = args.get("origin") or _origin(session)
+    dest = args.get("dest") or _first_city(session)
+    tt = get_travel_time(origin, dest, args.get("mode", "flight"))
+    return {"ok": True, "travel": tt}, [ev.travel_note(tt), ev.toast(tt["note"], "info")]
+
+
+def _h_get_packing_list(args, session):
+    city = args.get("city") or _first_city(session)
+    month = args.get("month") or (_month_of(session.trip.start_date) if session.trip else "your dates")
+    p = get_packing_list(city, month)
+    return {"ok": True, "packing": p}, [ev.packing_set(p)]
+
+
+def _h_get_cost_summary(args, session):
+    if session.trip is None:
+        return {"ok": False, "reason": "no trip yet"}, [ev.toast("Let's plan the trip first.", "warn")]
+    cb = cost_breakdown(session.trip)
+    category = args.get("category")
+    answer = cb
+    if category and category in cb["breakdown"]:
+        answer = {"category": category, "per_person": cb["breakdown"][category],
+                  "party_total": cb["breakdown"][category] * cb["travellers"]}
+    return {"ok": True, "cost": answer}, [ev.cost_summary(session.trip)]
+
+
 _HANDLERS = {
     "set_trip_requirements": _h_set_requirements,
     "plan_trip": _h_plan_trip,
+    "search_flights": _h_search_flights,
+    "search_hotels": _h_search_hotels,
+    "search_activities": _h_search_activities,
+    "search_events": _h_search_events,
+    "add_flight": _h_add_flight,
+    "add_hotel": _h_add_hotel,
+    "add_event": _h_add_event,
+    "get_weather": _h_get_weather,
+    "get_travel_time": _h_get_travel_time,
+    "get_packing_list": _h_get_packing_list,
+    "get_cost_summary": _h_get_cost_summary,
     "show_options": _h_show_options,
     "select_option": _h_select_option,
     "swap_hotel": _h_swap_hotel,
@@ -420,8 +600,30 @@ TOOL_DECLARATIONS: list[dict] = [
          "pace": _str("leisure|balanced|packed"),
          "must_dos": {"type": "array", "items": {"type": "string"}},
      }, "required": ["origin", "destinations"]}},
-    {"name": "plan_trip", "description": "Run the agentic orchestration and compose the itinerary.",
+    {"name": "plan_trip", "description": "Run the agentic orchestration and compose the full day-by-day itinerary in one go.",
      "parameters": {"type": "object", "properties": {}}},
+    {"name": "search_flights", "description": "Search flights for the route and show 4-5 options.",
+     "parameters": {"type": "object", "properties": {"origin": _str("origin city"), "dest": _str("destination city"), "date": _str("YYYY-MM-DD")}}},
+    {"name": "search_hotels", "description": "Search hotels in a city and show 4-5 options.",
+     "parameters": {"type": "object", "properties": {"city": _str("city"), "vibe": _str("optional vibe")}}},
+    {"name": "search_activities", "description": "Find things to do in a city and show options.",
+     "parameters": {"type": "object", "properties": {"city": _str("city")}}},
+    {"name": "search_events", "description": "Find events/festivals in a city for the dates.",
+     "parameters": {"type": "object", "properties": {"city": _str("city"), "month": _str("month")}}},
+    {"name": "add_flight", "description": "Add a searched flight to the trip (defaults to the best option).",
+     "parameters": {"type": "object", "properties": {"option_id": _str("id")}}},
+    {"name": "add_hotel", "description": "Add a searched hotel to the trip.",
+     "parameters": {"type": "object", "properties": {"option_id": _str("id")}}},
+    {"name": "add_event", "description": "Add a searched event to the trip.",
+     "parameters": {"type": "object", "properties": {"option_id": _str("id")}}},
+    {"name": "get_weather", "description": "Check the weather for a city on the travel dates.",
+     "parameters": {"type": "object", "properties": {"city": _str("city"), "month": _str("month")}}},
+    {"name": "get_travel_time", "description": "Get travel time between two places (flight or train).",
+     "parameters": {"type": "object", "properties": {"origin": _str("from"), "dest": _str("to"), "mode": _str("flight|train")}}},
+    {"name": "get_packing_list", "description": "Suggest what to pack based on the destination weather.",
+     "parameters": {"type": "object", "properties": {"city": _str("city"), "month": _str("month")}}},
+    {"name": "get_cost_summary", "description": "Get the live cost — total, or just flights/hotels/activities/events.",
+     "parameters": {"type": "object", "properties": {"category": _str("flights|hotels|activities|events (optional)")}}},
     {"name": "show_options", "description": "Show 4-5 options for a category.",
      "parameters": {"type": "object", "properties": {
          "category": _str("flight|hotel|activity|event"), "city": _str("city"), "tier": _str("optional tier")},

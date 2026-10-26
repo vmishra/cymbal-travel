@@ -19,11 +19,30 @@ from fastapi import WebSocket, WebSocketDisconnect
 from google import genai
 from google.genai import types
 
+from .domain import cost_breakdown
 from .live_config import live_config, model_label, resolve_model
 from .session import ItinerarySession
 from .tools import dispatch
 
 logger = logging.getLogger("cymbal.voice")
+
+
+def _context_note(session: ItinerarySession) -> str | None:
+    """A compact, non-triggering context update so Maya always knows the live
+    itinerary + costs (Gemini 3.8 Live dynamic context)."""
+    trip = session.trip
+    if trip is None:
+        return None
+    cb = cost_breakdown(trip)
+    b = cb["breakdown"]
+    return (
+        "[LIVE TRIP CONTEXT — use for any cost/itinerary question, do not read aloud verbatim] "
+        f"{trip.title}: {trip.nights} nights, {' → '.join([trip.origin, *trip.destinations])}, "
+        f"{len(trip.days)} days planned. Per-person ₹{cb['per_person']:,} "
+        f"(flights ₹{b['flights']:,}, hotels ₹{b['hotels']:,}, activities ₹{b['activities']:,}, "
+        f"events ₹{b['events']:,}, transfers ₹{b['transfers']:,}); party total ₹{cb['party_total']:,} "
+        f"for {cb['travellers']} travellers; budget ₹{cb['budget_per_person']:,}/person."
+    )
 
 
 def _api_key() -> str | None:
@@ -119,6 +138,13 @@ async def _downstream(ws: WebSocket, live, session: ItinerarySession, stop: asyn
                         responses.append(types.FunctionResponse(
                             id=getattr(fc, "id", None), name=fc.name, response=result))
                     await live.send_tool_response(function_responses=responses)
+                    # Dynamic context update: keep the model aware of live state.
+                    note = _context_note(session)
+                    if note:
+                        await live.send_client_content(
+                            turns=[types.Content(role="user", parts=[types.Part(text=note)])],
+                            turn_complete=False,
+                        )
                     continue
 
                 sc = getattr(response, "server_content", None)

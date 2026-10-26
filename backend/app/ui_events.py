@@ -7,7 +7,7 @@ reducer).
 """
 from __future__ import annotations
 
-from .domain import Trip, is_over_budget, per_person_total
+from .domain import Trip, cost_breakdown, is_over_budget, per_person_total
 
 Event = dict
 
@@ -89,3 +89,24 @@ def support_card(title: str, body: str, kind: str = "info") -> Event:
 
 def toast(message: str, level: str = "info") -> Event:
     return {"type": "toast", "payload": {"message": message, "level": level}}
+
+
+def thinking_step(label: str, status: str = "running") -> Event:
+    # status: running | done
+    return {"type": "thinking_step", "payload": {"label": label, "status": status}}
+
+
+def weather_set(weather: dict) -> Event:
+    return {"type": "weather_set", "payload": weather}
+
+
+def packing_set(packing: dict) -> Event:
+    return {"type": "packing_set", "payload": packing}
+
+
+def travel_note(note: dict) -> Event:
+    return {"type": "travel_note", "payload": note}
+
+
+def cost_summary(trip: Trip) -> Event:
+    return {"type": "cost_summary", "payload": cost_breakdown(trip)}
