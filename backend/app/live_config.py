@@ -14,10 +14,10 @@ from .tools import TOOL_DECLARATIONS
 
 MODEL_3_8 = "gemini-3.8-live"
 MODEL_2_5 = "gemini-2.5-flash-native-audio-latest"
-# Default to the proven 2.5 native-audio model (a proven reference) for the
-# most reliable Hinglish + female-voice experience. Set GEMINI_LIVE_MODEL=gemini-3.8-live
-# to use 3.8 (now configured per best practices).
-DEFAULT_MODEL = MODEL_2_5
+# On the AI Studio (API-key) path, use 3.8-live (the 2.5 native-audio model is a Vertex
+# model and does not work reliably on the Developer API). Set GEMINI_LIVE_MODEL to
+# gemini-2.5-flash-native-audio-latest only when running against Vertex.
+DEFAULT_MODEL = MODEL_3_8
 VOICE_NAME = "Aoede"  # female HD voice. Never a male voice (Charon/Puck/Fenrir) or Kore/Sulafat.
 LANGUAGE_CODE = "en-IN"  # Indian English hint to curb accent/language drift.
 
@@ -103,36 +103,19 @@ def _speech_config() -> types.SpeechConfig:
     )
 
 
-def _input_transcription(model: str) -> types.AudioTranscriptionConfig:
-    # custom_vocabulary biases domain words (supported on 3.8 Live).
-    if is_38(model):
-        try:
-            return types.AudioTranscriptionConfig(custom_vocabulary=CUSTOM_VOCAB)
-        except Exception:
-            pass
-    return types.AudioTranscriptionConfig()
-
-
-def _compression():
-    # Keep long sessions alive (native audio ~25 tokens/sec); evict old context.
-    try:
-        return types.ContextWindowCompressionConfig(
-            trigger_tokens=25600,
-            sliding_window=types.SlidingWindow(target_tokens=8000),
-        )
-    except Exception:
-        return None
-
-
 def live_config(model: str | None = None) -> types.LiveConnectConfig:
+    # Minimal, known-good config. Advanced fields (language_code, context compression,
+    # custom_vocabulary) are intentionally omitted — some are rejected at connect time
+    # on the Developer API and broke the live session. Accent/language are controlled
+    # via the system instruction, which is the supported path for native audio.
     model = model or resolve_model()
     tool = types.Tool(function_declarations=_function_declarations(model))
-    kwargs = dict(
+    return types.LiveConnectConfig(
         response_modalities=["AUDIO"],
         speech_config=_speech_config(),
         system_instruction=types.Content(parts=[types.Part(text=build_system_instruction())]),
         tools=[tool],
-        input_audio_transcription=_input_transcription(model),
+        input_audio_transcription=types.AudioTranscriptionConfig(),
         output_audio_transcription=types.AudioTranscriptionConfig(),
         realtime_input_config=types.RealtimeInputConfig(
             automatic_activity_detection=types.AutomaticActivityDetection(
@@ -144,11 +127,3 @@ def live_config(model: str | None = None) -> types.LiveConnectConfig:
             )
         ),
     )
-    comp = _compression()
-    if comp is not None:
-        kwargs["context_window_compression"] = comp
-    try:
-        return types.LiveConnectConfig(**kwargs)
-    except Exception:
-        kwargs.pop("context_window_compression", None)
-        return types.LiveConnectConfig(**kwargs)

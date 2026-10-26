@@ -6,14 +6,14 @@ from app.live_config import (
 )
 
 
-def test_default_model_is_2_5_gold_standard(monkeypatch):
+def test_default_model_is_3_8_on_api_key(monkeypatch):
     monkeypatch.delenv("GEMINI_LIVE_MODEL", raising=False)
-    assert resolve_model() == "gemini-2.5-flash-native-audio-latest"
-
-
-def test_model_is_env_overridable_to_3_8(monkeypatch):
-    monkeypatch.setenv("GEMINI_LIVE_MODEL", "gemini-3.8-live")
     assert resolve_model() == "gemini-3.8-live"
+
+
+def test_model_is_env_overridable(monkeypatch):
+    monkeypatch.setenv("GEMINI_LIVE_MODEL", "gemini-2.5-flash-native-audio-latest")
+    assert resolve_model() == "gemini-2.5-flash-native-audio-latest"
 
 
 def test_live_config_omits_affective_and_thinking():
