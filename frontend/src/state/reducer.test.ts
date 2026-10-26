@@ -1,0 +1,56 @@
+import { describe, expect, it } from 'vitest'
+import { initialState, reducer } from './reducer'
+import type { AppState, Trip } from './types'
+
+const trip: Trip = {
+  id: 't1', title: 'Japan', origin: 'Bangalore', destinations: ['Tokyo'],
+  start_date: '2026-12-10', nights: 3, travellers: [{ type: 'adult' }],
+  budget_per_person: 200000, pace: 'leisure', must_dos: [],
+  days: [
+    { index: 0, city: 'Tokyo', items: [
+      { kind: 'flight', id: 'f1', title: 'AeroNova', price_inr: 40000, airline: 'AeroNova', origin: 'BLR', destination: 'NRT', depart: '08:00', arrive: '18:00', tier: 'comfort' },
+      { kind: 'hotel', id: 'h1', title: 'Azure Grand', price_inr: 30000, hotel: 'Azure Grand', city: 'Tokyo', nights: 3, check_in: '2026-12-10', tier: 'comfort' },
+    ] },
+  ],
+}
+
+function withTrip(): AppState {
+  return reducer(initialState(), { type: 'itinerary_set', payload: { trip } })
+}
+
+describe('reducer', () => {
+  it('applies itinerary_set and derives budget', () => {
+    const s = withTrip()
+    expect(s.trip?.id).toBe('t1')
+    expect(s.budget?.per_person_total).toBe(70000)
+    expect(s.budget?.over).toBe(false)
+  })
+
+  it('item_swap replaces the card and updates budget', () => {
+    const s0 = withTrip()
+    const newHotel = { kind: 'hotel', id: 'h1', title: 'Meridian Grand', price_inr: 50000, hotel: 'Meridian Grand', city: 'Tokyo', nights: 3, check_in: '2026-12-10', tier: 'premium' }
+    const s = reducer(s0, { type: 'item_swap', payload: { item: newHotel } })
+    const hotel = s.trip!.days[0].items.find((i) => i.id === 'h1')!
+    expect((hotel as any).hotel).toBe('Meridian Grand')
+    expect(s.budget?.per_person_total).toBe(90000)
+  })
+
+  it('item_remove drops the card', () => {
+    const s0 = withTrip()
+    const s = reducer(s0, { type: 'item_remove', payload: { item_id: 'h1' } })
+    expect(s.trip!.days[0].items.find((i) => i.id === 'h1')).toBeUndefined()
+    expect(s.budget?.per_person_total).toBe(40000)
+  })
+
+  it('agent_status updates the panel lane', () => {
+    const s = reducer(initialState(), { type: 'agent_status', payload: { agent: 'Hotels', status: 'running' } })
+    expect(s.agents.Hotels).toBe('running')
+  })
+
+  it('toast is non-destructive to the trip', () => {
+    const s0 = withTrip()
+    const s = reducer(s0, { type: 'toast', payload: { message: 'hi', level: 'info' } })
+    expect(s.trip).toEqual(s0.trip)
+    expect(s.toasts.at(-1)?.message).toBe('hi')
+  })
+})
