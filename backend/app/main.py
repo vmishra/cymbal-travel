@@ -4,11 +4,17 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.staticfiles import StaticFiles
+from dotenv import load_dotenv
 
-from .sim import run_sim
-from .voice import voice_ws
+# Load ThinkTravel/.env (two levels up from this file) so running the backend
+# directly — not only via start.sh — picks up GOOGLE_API_KEY etc.
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect  # noqa: E402
+from fastapi.staticfiles import StaticFiles  # noqa: E402
+
+from .sim import run_sim  # noqa: E402
+from .voice import voice_ws  # noqa: E402
 
 app = FastAPI(title="Cymbal Travels")
 
