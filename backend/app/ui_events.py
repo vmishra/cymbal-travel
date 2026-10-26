@@ -15,10 +15,6 @@ AGENTS = ["Flights", "Hotels", "Itinerary", "Events"]
 GROUNDING = ["Maps", "Search", "WeatherNext"]
 
 
-def ready(model_label: str) -> Event:
-    return {"type": "ready", "payload": {"model_label": model_label}}
-
-
 def trip_brief(trip: Trip) -> Event:
     return {"type": "trip_brief", "payload": {
         "title": trip.title, "origin": trip.origin, "destinations": trip.destinations,
