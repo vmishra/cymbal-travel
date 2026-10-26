@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
+import logging
 import os
 
 from fastapi import WebSocket, WebSocketDisconnect
@@ -21,6 +22,8 @@ from google.genai import types
 from .live_config import live_config, model_label, resolve_model
 from .session import ItinerarySession
 from .tools import dispatch
+
+logger = logging.getLogger("cymbal.voice")
 
 
 def _api_key() -> str | None:
@@ -59,9 +62,10 @@ async def voice_ws(ws: WebSocket) -> None:
             )
     except WebSocketDisconnect:
         pass
-    except Exception as exc:  # surface to the client, keep the server alive
+    except Exception:  # keep the server alive; never leak internals to the client
+        logger.exception("voice session error")
         try:
-            await ws.send_json({"kind": "error", "message": str(exc)})
+            await ws.send_json({"kind": "error", "message": "Voice session failed — try again or use Sim mode."})
         except Exception:
             pass
     finally:
