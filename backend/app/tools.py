@@ -12,6 +12,7 @@ from datetime import date, timedelta
 from . import ui_events as ev
 from .domain import Activity, Event, Flight, HotelStay, Option, Transfer, Trip
 from .mock_services import get_activities, get_events, get_flights, get_hotels
+from .postsale_seed import BOOKED_REQUIREMENTS
 from .seed_data import CITY_COORDS
 from .session import ItineraryError, ItinerarySession
 from .ui_events import AGENTS, GROUNDING
@@ -139,6 +140,13 @@ def _last_day_index(trip: Trip, city: str | None) -> int:
         if matches:
             return matches[-1]
     return trip.days[-1].index if trip.days else 0
+
+
+def _ensure_postsale_trip(session: ItinerarySession) -> None:
+    """Post-sale works standalone: load a pre-booked trip if none is active."""
+    if session.trip is None:
+        session.set_requirements(BOOKED_REQUIREMENTS)
+        session.apply_plan(compose_itinerary(session.trip))
 
 
 def _set_last_options(session: ItinerarySession, options: list[Option]) -> None:
@@ -298,12 +306,12 @@ def _h_switch_mode(args, session):
 
 
 def _h_get_trip_status(args, session):
-    if session.trip is None:
-        return {"ok": False, "reason": "no trip"}, [ev.toast("No booked trip", "warn")]
+    _ensure_postsale_trip(session)
     return {"ok": True}, [ev.itinerary_set(session.trip), ev.budget_update(session.trip)]
 
 
 def _h_report_disruption(args, session):
+    _ensure_postsale_trip(session)
     flight = _find_item(session.trip, args["flight_id"]) if args.get("flight_id") else _first_flight(session.trip)
     fid = flight.id if flight else None
     dest = flight.destination if flight else (session.trip.destinations[0] if session.trip.destinations else "Tokyo")
@@ -319,6 +327,7 @@ def _h_report_disruption(args, session):
 
 
 def _h_rebook_flight(args, session):
+    _ensure_postsale_trip(session)
     flight = _find_item(session.trip, args["flight_id"]) if args.get("flight_id") else _first_flight(session.trip)
     if flight is None:
         return {"ok": False, "reason": "no flight"}, [ev.toast("No flight to rebook", "warn")]
@@ -335,6 +344,7 @@ def _h_rebook_flight(args, session):
 
 
 def _h_extend_trip(args, session):
+    _ensure_postsale_trip(session)
     city = args.get("city") or (session.trip.destinations[-1] if session.trip.destinations else "Tokyo")
     session.add_night(city)
     return {"ok": True, "city": city}, [
@@ -344,6 +354,7 @@ def _h_extend_trip(args, session):
 
 
 def _h_request_refund(args, session):
+    _ensure_postsale_trip(session)
     item_id = args.get("item_id", "")
     item = _find_item(session.trip, item_id)
     title = item.title if item else "item"

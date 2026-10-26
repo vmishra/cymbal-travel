@@ -9,6 +9,7 @@ import { VoiceOrb, type OrbState } from './components/VoiceOrb'
 import { OrchestrationPanel } from './components/OrchestrationPanel'
 import { TripMap } from './components/TripMap'
 import { OptionsCarousel } from './components/OptionsCarousel'
+import { PostSaleDashboard } from './components/PostSaleDashboard'
 import type { Item, Option } from './state/types'
 
 type Source = 'sim' | 'voice'
@@ -108,7 +109,10 @@ export default function App() {
               </div>
             )}
             {state.trip
-              ? <Itinerary trip={state.trip} lastChangedId={state.lastChangedId} />
+              ? (state.mode === 'postsale'
+                ? <PostSaleDashboard trip={state.trip} disruption={state.disruption}
+                    supportCards={state.supportCards} lastChangedId={state.lastChangedId} />
+                : <Itinerary trip={state.trip} lastChangedId={state.lastChangedId} />)
               : <div className="py-16 text-center text-muted">Composing your itinerary…</div>}
           </section>
 
