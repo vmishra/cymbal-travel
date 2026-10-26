@@ -8,6 +8,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 
 from .sim import run_sim
+from .voice import voice_ws
 
 app = FastAPI(title="Cymbal Travels")
 
@@ -15,6 +16,11 @@ app = FastAPI(title="Cymbal Travels")
 @app.get("/api/health")
 def health() -> dict:
     return {"ok": True}
+
+
+@app.websocket("/api/ws/voice")
+async def voice_endpoint(ws: WebSocket) -> None:
+    await voice_ws(ws)
 
 
 @app.websocket("/api/ws/sim")
