@@ -7,6 +7,7 @@ import { BudgetMeter } from './components/BudgetMeter'
 import { TranscriptRail } from './components/TranscriptRail'
 import { VoiceOrb, type OrbState } from './components/VoiceOrb'
 import { OrchestrationPanel } from './components/OrchestrationPanel'
+import { TripMap } from './components/TripMap'
 
 type Source = 'sim' | 'voice'
 
@@ -91,6 +92,11 @@ export default function App() {
           </section>
 
           <aside className="flex flex-col gap-4">
+            {state.trip && (
+              <div className="rounded-2xl bg-card p-2 shadow-sm ring-1 ring-line">
+                <TripMap cities={state.mapCities.length ? state.mapCities : state.trip.destinations} pins={state.mapPins} />
+              </div>
+            )}
             <OrchestrationPanel agents={state.agents} grounding={state.grounding} />
             {state.budget && (
               <div className="rounded-2xl bg-card p-4 shadow-sm ring-1 ring-line"><BudgetMeter budget={state.budget} /></div>
