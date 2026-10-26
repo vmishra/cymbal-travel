@@ -19,7 +19,6 @@ from fastapi import WebSocket, WebSocketDisconnect
 from google import genai
 from google.genai import types
 
-from .domain import cost_breakdown
 from .live_config import live_config, model_label, resolve_model
 from .session import ItinerarySession
 from .tools import dispatch
@@ -27,22 +26,19 @@ from .tools import dispatch
 logger = logging.getLogger("cymbal.voice")
 
 
-def _context_note(session: ItinerarySession) -> str | None:
-    """A compact, non-triggering context update so Maya always knows the live
-    itinerary + costs (Gemini 3.8 Live dynamic context)."""
-    trip = session.trip
-    if trip is None:
-        return None
-    cb = cost_breakdown(trip)
-    b = cb["breakdown"]
-    return (
-        "[LIVE TRIP CONTEXT — use for any cost/itinerary question, do not read aloud verbatim] "
-        f"{trip.title}: {trip.nights} nights, {' → '.join([trip.origin, *trip.destinations])}, "
-        f"{len(trip.days)} days planned. Per-person ₹{cb['per_person']:,} "
-        f"(flights ₹{b['flights']:,}, hotels ₹{b['hotels']:,}, activities ₹{b['activities']:,}, "
-        f"events ₹{b['events']:,}, transfers ₹{b['transfers']:,}); party total ₹{cb['party_total']:,} "
-        f"for {cb['travellers']} travellers; budget ₹{cb['budget_per_person']:,}/person."
-    )
+def _function_response(fc, result: dict):
+    """Async (NON_BLOCKING) tool response. WHEN_IDLE lets Maya finish her current
+    sentence before narrating the result — smoother, and avoids the INTERRUPT path
+    that can produce duplicate/overlapping audio."""
+    kwargs = {"id": getattr(fc, "id", None), "name": fc.name, "response": result}
+    sched = getattr(types, "FunctionResponseScheduling", None)
+    if sched is not None and hasattr(sched, "WHEN_IDLE"):
+        kwargs["scheduling"] = sched.WHEN_IDLE
+    try:
+        return types.FunctionResponse(**kwargs)
+    except Exception:
+        kwargs.pop("scheduling", None)
+        return types.FunctionResponse(**kwargs)
 
 
 def _api_key() -> str | None:
@@ -135,16 +131,8 @@ async def _downstream(ws: WebSocket, live, session: ItinerarySession, stop: asyn
                         result, events = dispatch(fc.name, dict(fc.args or {}), session)
                         for event in events:
                             await ws.send_json({"kind": "ui", "event": event})
-                        responses.append(types.FunctionResponse(
-                            id=getattr(fc, "id", None), name=fc.name, response=result))
+                        responses.append(_function_response(fc, result))
                     await live.send_tool_response(function_responses=responses)
-                    # Dynamic context update: keep the model aware of live state.
-                    note = _context_note(session)
-                    if note:
-                        await live.send_client_content(
-                            turns=[types.Content(role="user", parts=[types.Part(text=note)])],
-                            turn_complete=False,
-                        )
                     continue
 
                 sc = getattr(response, "server_content", None)

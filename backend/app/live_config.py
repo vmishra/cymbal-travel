@@ -61,22 +61,29 @@ def _to_schema(d: dict) -> types.Schema:
     return schema
 
 
+def _non_blocking():
+    b = getattr(types, "Behavior", None)
+    return getattr(b, "NON_BLOCKING", None) if b is not None else None
+
+
 def _function_declarations(model: str) -> list[types.FunctionDeclaration]:
-    async_tools = tool_behavior(model)["async"]
+    # Gemini 3.8 Live requires every tool to be NON_BLOCKING (async). The 2.5
+    # fallback keeps the default (blocking) behaviour.
+    behavior = _non_blocking() if tool_behavior(model)["async"] else None
     decls = []
     for d in TOOL_DECLARATIONS:
-        fd = types.FunctionDeclaration(
+        kwargs = dict(
             name=d["name"],
             description=d.get("description", ""),
             parameters=_to_schema(d["parameters"]),
         )
-        if async_tools:
-            # Best-effort: enable non-blocking behaviour when the SDK supports it.
-            try:
-                fd.behavior = types.Behavior.NON_BLOCKING  # type: ignore[attr-defined]
-            except Exception:
-                pass
-        decls.append(fd)
+        if behavior is not None:
+            kwargs["behavior"] = behavior
+        try:
+            decls.append(types.FunctionDeclaration(**kwargs))
+        except Exception:
+            kwargs.pop("behavior", None)
+            decls.append(types.FunctionDeclaration(**kwargs))
     return decls
 
 
