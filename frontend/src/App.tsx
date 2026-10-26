@@ -84,7 +84,7 @@ export default function App() {
       </header>
 
       {!started ? (
-        <div className="flex min-h-[70vh] flex-col items-center justify-center gap-6 px-6 text-center">
+        <div className="hero-bg flex min-h-[78vh] flex-col items-center justify-center gap-6 px-6 text-center">
           <VoiceOrb state={orbState} onClick={start} size={168} />
           <div className="max-w-xl">
             <h1 className="text-3xl font-semibold tracking-tight">Plan your trip, just by talking.</h1>
@@ -98,7 +98,7 @@ export default function App() {
         <main className="mx-auto grid max-w-6xl grid-cols-1 gap-4 p-4 lg:grid-cols-[1fr_360px]" data-testid="workspace">
           <section className="rounded-2xl bg-card p-5 shadow-sm ring-1 ring-line">
             {state.brief && <div className="mb-4"><TripBrief brief={state.brief} /></div>}
-            {state.options && (
+            {state.mode === 'plan' && state.options && (
               <div className="mb-4">
                 <OptionsCarousel
                   category={state.options.category}
@@ -111,7 +111,9 @@ export default function App() {
             {state.trip
               ? (state.mode === 'postsale'
                 ? <PostSaleDashboard trip={state.trip} disruption={state.disruption}
-                    supportCards={state.supportCards} lastChangedId={state.lastChangedId} />
+                    supportCards={state.supportCards} lastChangedId={state.lastChangedId}
+                    options={state.options} onSelect={selectOption}
+                    onDismiss={() => dispatch({ type: 'options_clear' })} />
                 : <Itinerary trip={state.trip} lastChangedId={state.lastChangedId} />)
               : <div className="py-16 text-center text-muted">Composing your itinerary…</div>}
           </section>
