@@ -16,6 +16,9 @@ frontend/.vite/
 *.local
 
 
+# Generated Nano Banana images (cached, large, regenerated on demand)
+backend/generated_images/
+
 # OS
 .DS_Store
 

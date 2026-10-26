@@ -9,7 +9,7 @@ export type ItemKind = 'flight' | 'hotel' | 'activity' | 'event' | 'transfer'
 
 export type Slot = 'morning' | 'afternoon' | 'evening'
 
-interface BaseItem { id: string; title: string; price_inr: number; description?: string }
+interface BaseItem { id: string; title: string; price_inr: number; description?: string; image_url?: string }
 export interface Flight extends BaseItem { kind: 'flight'; airline: string; origin: string; destination: string; depart: string; arrive: string; tier: Tier; duration?: string; stops?: string }
 export interface HotelStay extends BaseItem { kind: 'hotel'; hotel: string; city: string; nights: number; check_in: string; tier: Tier }
 export interface Activity extends BaseItem { kind: 'activity'; city: string; time?: string | null; duration?: string; slot?: Slot | null }

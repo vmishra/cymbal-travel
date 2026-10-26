@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 
+from . import images
 from .domain import Option
 from .seed_data import (
     ACTIVITY_PRICES,
@@ -87,7 +88,7 @@ def get_hotels(city: str, nights: int, pax: int, vibe: str | None = None) -> lis
             category="hotel", name=f"{prefix} {city}", tier=tier,
             price_inr=_price(HOTEL_PRICES, tier, seed), rating=_rating(tier, i),
             highlights=[f"{nights} nights", vibe or descriptor.split(",")[0]],
-            image_url=f"grad:hotel-{i}",
+            image_url=f"/api/img/{images.register('hotel', f'{prefix} {city}', city)}",
             description=f"{descriptor.capitalize()}.",
             why=("Great location and loved by families" if tier in ("comfort", "premium") else
                  "Best value for the dates" if tier == "value" else "A standout splurge"),
@@ -114,7 +115,8 @@ def get_activities(city: str, interests: list[str] | None = None) -> list[Option
             id=_id("activity", city, i),
             category="activity", name=a["name"], tier=tier,
             price_inr=_price(ACTIVITY_PRICES, tier, seed), rating=_rating(tier, i),
-            highlights=[city, a.get("duration", "")], image_url=f"grad:activity-{i}",
+            highlights=[city, a.get("duration", "")],
+            image_url=f"/api/img/{images.register('activity', a['name'], city)}",
             description=a.get("desc", ""), duration=a.get("duration", ""),
             why="A local favourite that fits your pace",
         ))
@@ -134,7 +136,8 @@ def get_events(city: str, month: str | None = None) -> list[Option]:
             id=_id("event", city, i),
             category="event", name=e["name"], tier=tier,
             price_inr=_price(EVENT_PRICES, tier, seed), rating=_rating(tier, i),
-            highlights=[month or "Seasonal", city], image_url=f"grad:event-{i}",
+            highlights=[month or "Seasonal", city],
+            image_url=f"/api/img/{images.register('event', e['name'], city)}",
             description=e.get("desc", ""), why="Perfect timing for your dates",
         ))
     return out

@@ -1,7 +1,7 @@
 import type { HotelStay } from '../state/types'
 import { rupees } from '../theme'
-import { sceneFor } from '../lib/visuals'
 import { Icon } from './Icon'
+import { SmartImage } from './SmartImage'
 
 export function HotelCard({ hotel, flash }: { hotel: HotelStay; flash?: boolean }) {
   return (
@@ -10,8 +10,10 @@ export function HotelCard({ hotel, flash }: { hotel: HotelStay; flash?: boolean 
       data-kind="hotel"
       className={`anim-cardin overflow-hidden rounded-2xl bg-card ring-1 ring-line ${flash ? 'anim-flash' : ''}`}
     >
-      <div className="relative h-24" style={{ background: sceneFor(hotel.hotel) }}>
-        <span className="absolute left-3 top-3 grid h-8 w-8 place-items-center rounded-lg bg-white/85 text-hotel">
+      <div className="relative h-28">
+        <SmartImage src={hotel.image_url} seed={hotel.hotel} className="h-full w-full" alt={hotel.hotel} />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/45 to-transparent" />
+        <span className="absolute left-3 top-3 grid h-8 w-8 place-items-center rounded-lg bg-white/90 text-hotel">
           <Icon name="hotel" size={17} />
         </span>
         <span className="absolute bottom-2 left-3 text-sm font-semibold text-white drop-shadow">{hotel.hotel}</span>

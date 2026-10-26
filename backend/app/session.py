@@ -17,6 +17,8 @@ def _apply_option(old, option: Option):
     data = old.model_dump()
     data["price_inr"] = option.price_inr
     data["title"] = option.name
+    if option.image_url:
+        data["image_url"] = option.image_url
     if old.kind == "hotel":
         data["hotel"] = option.name
         data["tier"] = option.tier

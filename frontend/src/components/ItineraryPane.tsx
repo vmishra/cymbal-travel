@@ -7,6 +7,9 @@ import { HotelCard } from './HotelCard'
 import { CostBreakdown } from './CostBreakdown'
 import { PackingPanel } from './PackingPanel'
 import { TipsPanel } from './TipsPanel'
+import { PlaceDetailModal } from './PlaceDetailModal'
+
+type OpenFn = (item: Activity | EventItem) => void
 
 const SLOTS: [Slot, string][] = [['morning', '🌅 Morning'], ['afternoon', '☀️ Afternoon'], ['evening', '🌙 Evening']]
 
@@ -38,7 +41,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   )
 }
 
-function DayView({ day, weather, lastChangedId }: { day: Day; weather?: Weather; lastChangedId: string | null }) {
+function DayView({ day, weather, lastChangedId, onOpen }: { day: Day; weather?: Weather; lastChangedId: string | null; onOpen: OpenFn }) {
   const travel = day.items.filter((i): i is Flight | Transfer => i.kind === 'flight' || i.kind === 'transfer')
   const stay = day.items.find((i): i is HotelStay => i.kind === 'hotel')
   const places = day.items.filter((i): i is Activity | EventItem => i.kind === 'activity' || i.kind === 'event')
@@ -58,7 +61,7 @@ function DayView({ day, weather, lastChangedId }: { day: Day; weather?: Weather;
           return (
             <div key={slot}>
               <div className="mb-1 mt-1 text-[12px] font-medium">{label}</div>
-              <div className="space-y-2">{items.map((p) => <PlaceCard key={p.id} item={p} flash={p.id === lastChangedId} />)}</div>
+              <div className="space-y-2">{items.map((p) => <PlaceCard key={p.id} item={p} flash={p.id === lastChangedId} onOpen={onOpen} />)}</div>
             </div>
           )
         })}
@@ -76,6 +79,7 @@ export function ItineraryPane({ trip, weather, cost, packing, lastChangedId }: {
   lastChangedId: string | null
 }) {
   const [tab, setTab] = useState(0) // 0 = overview, 1..N = day
+  const [detail, setDetail] = useState<Activity | EventItem | null>(null)
   useEffect(() => { if (tab > trip.days.length) setTab(0) }, [trip.days.length, tab])
 
   return (
@@ -94,16 +98,17 @@ export function ItineraryPane({ trip, weather, cost, packing, lastChangedId }: {
             {trip.days.map((d) => (
               <div key={d.index} className="border-t border-line pt-4 first:border-0 first:pt-0">
                 <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted">Day {d.index + 1}</div>
-                <DayView day={d} weather={weather[d.city]} lastChangedId={lastChangedId} />
+                <DayView day={d} weather={weather[d.city]} lastChangedId={lastChangedId} onOpen={setDetail} />
               </div>
             ))}
             {packing && <PackingPanel packing={packing} />}
             <TipsPanel />
           </div>
         ) : (
-          <DayView day={trip.days[tab - 1]} weather={weather[trip.days[tab - 1]?.city]} lastChangedId={lastChangedId} />
+          <DayView day={trip.days[tab - 1]} weather={weather[trip.days[tab - 1]?.city]} lastChangedId={lastChangedId} onOpen={setDetail} />
         )}
       </div>
+      {detail && <PlaceDetailModal item={detail} onClose={() => setDetail(null)} />}
     </div>
   )
 }

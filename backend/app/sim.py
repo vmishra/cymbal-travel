@@ -29,4 +29,8 @@ async def run_sim(send: Send, fast: bool = False) -> None:
             _result, events = dispatch(tool, step.get("args", {}), session)
             for event in events:
                 await send({"kind": "ui", "event": event})
+                if not fast:
+                    # Stream events so the work visibly unfolds, not all at once.
+                    et = event.get("type")
+                    await asyncio.sleep(0.45 if et in ("thinking_step", "agent_status", "options_show") else 0.18)
     await send({"kind": "turn_complete"})

@@ -40,6 +40,7 @@ class _BaseItem(BaseModel):
     title: str
     price_inr: int = 0
     description: str = ""
+    image_url: str = ""
 
 
 class Flight(_BaseItem):

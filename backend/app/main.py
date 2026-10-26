@@ -10,9 +10,11 @@ from dotenv import load_dotenv
 # directly — not only via start.sh — picks up GOOGLE_API_KEY etc.
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect  # noqa: E402
+from fastapi import FastAPI, Response, WebSocket, WebSocketDisconnect  # noqa: E402
+from fastapi.responses import FileResponse  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 
+from . import images  # noqa: E402
 from .sim import run_sim  # noqa: E402
 from .voice import voice_ws  # noqa: E402
 
@@ -22,6 +24,16 @@ app = FastAPI(title="Cymbal Travels")
 @app.get("/api/health")
 def health() -> dict:
     return {"ok": True}
+
+
+@app.get("/api/img/{slug}")
+def get_image(slug: str):
+    """Serve a cached Nano Banana image; kick off generation on a known miss."""
+    if images.has_image(slug):
+        return FileResponse(str(images.cache_path(slug)), media_type="image/png",
+                            headers={"Cache-Control": "public, max-age=86400"})
+    images.ensure_async(slug)
+    return Response(status_code=404)
 
 
 @app.websocket("/api/ws/voice")

@@ -3,6 +3,7 @@ import type { Trip, Weather } from '../state/types'
 import { DOMAIN_COLOR } from '../theme'
 import { hotScore, sceneFor } from '../lib/visuals'
 import { Icon } from './Icon'
+import { SmartImage } from './SmartImage'
 
 const FILTERS = [
   { key: 'activity', label: 'Attractions', icon: 'activity' as const },
@@ -35,16 +36,11 @@ export function MapCanvas({ trip, weather, cities }: {
     (trip?.days.flatMap((d) => d.items) ?? []).filter((it) => 'city' in it && (it as any).city === city)
 
   return (
-    <div data-testid="map" className="relative h-full overflow-hidden rounded-2xl ring-1 ring-line"
-      style={{ background: 'linear-gradient(160deg,#eaf1fe 0%,#e8f5ec 55%,#f6f8fc 100%)' }}>
-      {/* abstract landmasses */}
+    <div data-testid="map" className="relative h-full overflow-hidden rounded-2xl bg-paper ring-1 ring-line">
+      <SmartImage src="/api/img/mapbg" seed="mapbg" className="absolute inset-0 h-full w-full" />
+      <div className="absolute inset-0 bg-white/20" />
       <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
-        <path d="M-5 20 Q 30 10 55 22 T 110 18 L 110 -5 L -5 -5 Z" fill="#d7e8d9" opacity="0.6" />
-        <path d="M-5 72 Q 35 62 60 72 T 110 70 L 110 110 L -5 110 Z" fill="#dbe7fa" opacity="0.6" />
-        <path d="M60 30 Q 85 40 78 60 T 90 95 L 110 95 L 110 25 Z" fill="#e5efe0" opacity="0.5" />
-      </svg>
-      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
-        <path d={path} fill="none" stroke="#1a73e8" strokeWidth="0.6" strokeDasharray="1.2 2" opacity="0.8" />
+        <path d={path} fill="none" stroke="#1a73e8" strokeWidth="0.7" strokeDasharray="1.2 2.2" opacity="0.9" className="anim-dash" />
       </svg>
 
       {/* category filters */}
@@ -69,7 +65,8 @@ export function MapCanvas({ trip, weather, cities }: {
             className="absolute -translate-x-1/2 -translate-y-1/2 transition"
             style={{ left: `${pts[i].x}%`, top: `${pts[i].y}%`, opacity: dim ? 0.4 : 1 }}>
             <span className="relative grid place-items-center">
-              <span className="grid h-6 w-6 place-items-center rounded-full border-2 border-white bg-brand text-white shadow-md">
+              <span className="pin-pulse absolute h-6 w-6 rounded-full bg-brand" />
+              <span className="relative grid h-6 w-6 place-items-center rounded-full border-2 border-white bg-brand text-white shadow-md">
                 <span className="h-1.5 w-1.5 rounded-full bg-white" />
               </span>
               <span className="absolute left-1/2 top-7 -translate-x-1/2 whitespace-nowrap rounded-full bg-white/90 px-2 py-0.5 text-[11px] font-semibold shadow-sm">

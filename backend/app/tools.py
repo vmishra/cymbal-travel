@@ -66,12 +66,13 @@ def _pick(options: list[Option], tier: str) -> Option:
 
 def _activity_item(opt: Option, city: str, day_index: int, slot: str = "afternoon") -> Activity:
     return Activity(id=f"{opt.id}-d{day_index}-{slot}", title=opt.name, price_inr=opt.price_inr,
-                    city=city, time=slot, slot=slot, duration=opt.duration, description=opt.description)
+                    city=city, time=slot, slot=slot, duration=opt.duration,
+                    description=opt.description, image_url=opt.image_url)
 
 
 def _event_item(opt: Option, city: str, day_index: int, when: str = "") -> Event:
     return Event(id=f"{opt.id}-d{day_index}-ev", title=opt.name, price_inr=opt.price_inr,
-                 city=city, date=when, slot="evening", description=opt.description)
+                 city=city, date=when, slot="evening", description=opt.description, image_url=opt.image_url)
 
 
 def compose_itinerary(trip: Trip) -> Trip:
@@ -109,7 +110,7 @@ def compose_itinerary(trip: Trip) -> Trip:
         hotel = HotelStay(
             id=hopt.id, title=hopt.name, price_inr=hopt.price_inr, hotel=hopt.name,
             city=city, nights=nights_per[ci], check_in=cur_date, tier=hopt.tier,
-            description=hopt.description,
+            description=hopt.description, image_url=hopt.image_url,
         )
         acts = get_activities(city)
         n_acts = len(acts)
@@ -281,7 +282,8 @@ def _h_select_option(args, session):
 def _item_from_option(opt: Option, city: str, day_index: int):
     if opt.category == "hotel":
         return HotelStay(id=f"{opt.id}-sel", title=opt.name, price_inr=opt.price_inr,
-                         hotel=opt.name, city=city, nights=2, check_in="", tier=opt.tier)
+                         hotel=opt.name, city=city, nights=2, check_in="", tier=opt.tier,
+                         image_url=opt.image_url, description=opt.description)
     if opt.category == "flight":
         return Flight(id=f"{opt.id}-sel", title=opt.name, price_inr=opt.price_inr,
                       airline=opt.name.split(" ")[0], origin="", destination=city,
