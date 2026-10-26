@@ -3,12 +3,14 @@ import { rupees } from '../theme'
 import { Icon } from './Icon'
 import { SmartImage } from './SmartImage'
 
-export function HotelCard({ hotel, flash }: { hotel: HotelStay; flash?: boolean }) {
+export function HotelCard({ hotel, flash, onOpen }: { hotel: HotelStay; flash?: boolean; onOpen?: (h: HotelStay) => void }) {
   return (
-    <div
+    <button
+      type="button"
+      onClick={() => onOpen?.(hotel)}
       data-item-id={hotel.id}
       data-kind="hotel"
-      className={`anim-cardin overflow-hidden rounded-2xl bg-card ring-1 ring-line ${flash ? 'anim-flash' : ''}`}
+      className={`anim-cardin block w-full overflow-hidden rounded-2xl bg-card text-left ring-1 ring-line transition hover:shadow-md ${flash ? 'anim-flash' : ''}`}
     >
       <div className="relative h-28">
         <SmartImage src={hotel.image_url} seed={hotel.hotel} className="h-full w-full" alt={hotel.hotel} />
@@ -29,6 +31,6 @@ export function HotelCard({ hotel, flash }: { hotel: HotelStay; flash?: boolean 
           <div className="tabular text-base font-semibold text-hotel">{rupees(hotel.price_inr)}</div>
         </div>
       </div>
-    </div>
+    </button>
   )
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import type { Activity, Cost, Day, EventItem, Flight, HotelStay, Packing, Slot, Transfer, Trip, Weather } from '../state/types'
+import type { Activity, Cost, Day, EventItem, Flight, HotelStay, Item, Packing, Slot, Transfer, Trip, Weather } from '../state/types'
 import { DOMAIN_COLOR, rupees } from '../theme'
 import { Icon } from './Icon'
 import { PlaceCard } from './PlaceCard'
@@ -7,19 +7,20 @@ import { HotelCard } from './HotelCard'
 import { CostBreakdown } from './CostBreakdown'
 import { PackingPanel } from './PackingPanel'
 import { TipsPanel } from './TipsPanel'
-import { PlaceDetailModal } from './PlaceDetailModal'
+import { DetailModal } from './DetailModal'
 
-type OpenFn = (item: Activity | EventItem) => void
+type OpenFn = (item: Item) => void
 
 const SLOTS: [Slot, string][] = [['morning', '🌅 Morning'], ['afternoon', '☀️ Afternoon'], ['evening', '🌙 Evening']]
 
-function TravelRow({ item }: { item: Flight | Transfer }) {
+function TravelRow({ item, onOpen }: { item: Flight | Transfer; onOpen: OpenFn }) {
   const color = DOMAIN_COLOR[item.kind]
   const sub = item.kind === 'flight'
     ? `${item.origin} → ${item.destination} · ${item.duration || ''} · ${item.stops || ''}`
     : item.description || `${item.origin} → ${item.destination}`
   return (
-    <div data-item-id={item.id} data-kind={item.kind} className="anim-cardin flex items-center gap-3 rounded-xl bg-paper px-3 py-2.5">
+    <button type="button" onClick={() => onOpen(item)} data-item-id={item.id} data-kind={item.kind}
+      className="anim-cardin flex w-full items-center gap-3 rounded-xl bg-paper px-3 py-2.5 text-left transition hover:bg-sky/50">
       <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg" style={{ color, background: color + '18' }}>
         <Icon name={item.kind} size={16} />
       </span>
@@ -28,7 +29,7 @@ function TravelRow({ item }: { item: Flight | Transfer }) {
         <div className="truncate text-[12px] text-muted">{sub}</div>
       </div>
       {item.price_inr > 0 && <div className="tabular text-[12px] font-medium text-muted">{rupees(item.price_inr)}</div>}
-    </div>
+    </button>
   )
 }
 
@@ -53,7 +54,7 @@ function DayView({ day, weather, lastChangedId, onOpen }: { day: Day; weather?: 
         <div className="text-lg font-semibold">{day.city}</div>
         {weather && <span className="rounded-full bg-paper px-2.5 py-1 text-[12px] text-muted ring-1 ring-line">{weather.icon} {weather.low_c}–{weather.high_c}°C</span>}
       </div>
-      {travel.length > 0 && <Section title="Getting there">{travel.map((t) => <TravelRow key={t.id} item={t} />)}</Section>}
+      {travel.length > 0 && <Section title="Getting there">{travel.map((t) => <TravelRow key={t.id} item={t} onOpen={onOpen} />)}</Section>}
       <Section title="What to see & do">
         {SLOTS.map(([slot, label]) => {
           const items = bySlot(slot)
@@ -66,7 +67,7 @@ function DayView({ day, weather, lastChangedId, onOpen }: { day: Day; weather?: 
           )
         })}
       </Section>
-      {stay && <Section title="Where to stay"><HotelCard hotel={stay} flash={stay.id === lastChangedId} /></Section>}
+      {stay && <Section title="Where to stay"><HotelCard hotel={stay} flash={stay.id === lastChangedId} onOpen={onOpen} /></Section>}
     </div>
   )
 }
@@ -79,7 +80,7 @@ export function ItineraryPane({ trip, weather, cost, packing, lastChangedId }: {
   lastChangedId: string | null
 }) {
   const [tab, setTab] = useState(0) // 0 = overview, 1..N = day
-  const [detail, setDetail] = useState<Activity | EventItem | null>(null)
+  const [detail, setDetail] = useState<Item | null>(null)
   useEffect(() => { if (tab > trip.days.length) setTab(0) }, [trip.days.length, tab])
 
   return (
@@ -108,7 +109,7 @@ export function ItineraryPane({ trip, weather, cost, packing, lastChangedId }: {
           <DayView day={trip.days[tab - 1]} weather={weather[trip.days[tab - 1]?.city]} lastChangedId={lastChangedId} onOpen={setDetail} />
         )}
       </div>
-      {detail && <PlaceDetailModal item={detail} onClose={() => setDetail(null)} />}
+      {detail && <DetailModal item={detail} onClose={() => setDetail(null)} />}
     </div>
   )
 }
