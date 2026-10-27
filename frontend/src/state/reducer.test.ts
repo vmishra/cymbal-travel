@@ -54,3 +54,11 @@ describe('reducer', () => {
     expect(s.toasts.at(-1)?.message).toBe('hi')
   })
 })
+
+describe('screen advances on trip_brief', () => {
+  it('sets brief so the workspace (trip||brief) shows', () => {
+    const s = reducer(initialState(), { type: 'trip_brief', payload: { title: 'Japan', origin: 'Bangalore', destinations: ['Tokyo'], nights: 7, travellers: [], budget_per_person: 200000 } })
+    expect(s.brief).toBeTruthy()
+    expect(Boolean(s.trip || s.brief)).toBe(true)
+  })
+})

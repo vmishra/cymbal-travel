@@ -18,18 +18,23 @@ def _as_list(v) -> list[str]:
     return [str(v)]
 
 
-def _as_int(v) -> int:
+def _as_int(v, cap: int = 10_000_000) -> int:
     if isinstance(v, (int, float)):
-        return int(v)
-    m = re.search(r"\d[\d,]*", str(v or ""))
-    return int(m.group().replace(",", "")) if m else 0
+        n = int(v)
+    else:
+        m = re.search(r"\d[\d,]*", str(v or ""))
+        n = int(m.group().replace(",", "")) if m else 0
+    return max(0, min(n, cap))
+
+
+_MAX_TRAVELLERS = 16
 
 
 def _travellers(v) -> list[Traveller]:
-    if isinstance(v, int):
-        v = [{"type": "adult"} for _ in range(v)]
+    if isinstance(v, (int, float)):
+        v = [{"type": "adult"} for _ in range(max(0, min(int(v), _MAX_TRAVELLERS)))]
     out: list[Traveller] = []
-    for t in (v or []):
+    for t in list(v or [])[:_MAX_TRAVELLERS]:
         if isinstance(t, Traveller):
             out.append(t)
             continue
@@ -89,7 +94,7 @@ class ItinerarySession:
             origin=str(req.get("origin") or ""),
             destinations=dests,
             start_date=str(req.get("start_date") or ""),
-            nights=_as_int(req.get("nights")),
+            nights=_as_int(req.get("nights"), cap=30),
             travellers=_travellers(req.get("travellers")),
             budget_per_person=_as_int(req.get("budget_per_person")),
             pace=str(req.get("pace") or "leisure"),
