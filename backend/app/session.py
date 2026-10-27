@@ -1,7 +1,48 @@
 """Authoritative, mutable trip state for one planning session."""
 from __future__ import annotations
 
+import re
+
 from .domain import Day, Flight, HotelStay, Option, Traveller, Trip
+
+_CHILD_WORDS = {"child", "children", "kid", "kids", "infant", "baby", "son", "daughter", "toddler", "minor"}
+
+
+def _as_list(v) -> list[str]:
+    if v is None:
+        return []
+    if isinstance(v, str):
+        return [v.strip()] if v.strip() else []
+    if isinstance(v, (list, tuple)):
+        return [str(x).strip() for x in v if str(x).strip()]
+    return [str(v)]
+
+
+def _as_int(v) -> int:
+    if isinstance(v, (int, float)):
+        return int(v)
+    m = re.search(r"\d[\d,]*", str(v or ""))
+    return int(m.group().replace(",", "")) if m else 0
+
+
+def _travellers(v) -> list[Traveller]:
+    if isinstance(v, int):
+        v = [{"type": "adult"} for _ in range(v)]
+    out: list[Traveller] = []
+    for t in (v or []):
+        if isinstance(t, Traveller):
+            out.append(t)
+            continue
+        if not isinstance(t, dict):
+            continue
+        typ = str(t.get("type", "adult")).lower()
+        kind = "child" if any(w in typ for w in _CHILD_WORDS) else "adult"
+        try:
+            age = int(t["age"]) if t.get("age") is not None else None
+        except Exception:
+            age = None
+        out.append(Traveller(type=kind, age=age))
+    return out
 
 
 class ItineraryError(Exception):
@@ -36,19 +77,23 @@ class ItinerarySession:
 
     # --- lifecycle -----------------------------------------------------------
     def set_requirements(self, req: dict) -> Trip:
-        travellers = [Traveller(**t) if isinstance(t, dict) else t
-                      for t in req.get("travellers", [])]
+        # Tolerant of whatever shape the model sends — never throws, so the trip
+        # brief always renders (destinations as a string, type="children"/"kid",
+        # nights/budget as "7"/"2 lakh", a traveller count, etc.).
+        req = req or {}
+        dests = _as_list(req.get("destinations"))
+        title = req.get("title") or (f"{dests[0]} trip" if dests else "Your trip")
         self.trip = Trip(
             id=req.get("id", "trip"),
-            title=req.get("title", "Trip"),
-            origin=req.get("origin", ""),
-            destinations=req.get("destinations", []),
-            start_date=req.get("start_date", ""),
-            nights=int(req.get("nights", 0)),
-            travellers=travellers,
-            budget_per_person=int(req.get("budget_per_person", 0)),
-            pace=req.get("pace", "leisure"),
-            must_dos=req.get("must_dos", []),
+            title=str(title),
+            origin=str(req.get("origin") or ""),
+            destinations=dests,
+            start_date=str(req.get("start_date") or ""),
+            nights=_as_int(req.get("nights")),
+            travellers=_travellers(req.get("travellers")),
+            budget_per_person=_as_int(req.get("budget_per_person")),
+            pace=str(req.get("pace") or "leisure"),
+            must_dos=_as_list(req.get("must_dos")),
             days=[],
         )
         return self.trip
