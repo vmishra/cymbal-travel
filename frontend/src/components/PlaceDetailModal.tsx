@@ -25,7 +25,7 @@ export function PlaceDetailModal({ item, onClose }: { item: Activity | EventItem
             {item.price_inr > 0 && <span className="tabular rounded-full bg-paper px-2.5 py-1 ring-1 ring-line">{rupees(item.price_inr)} / person</span>}
           </div>
           <div className="rounded-xl bg-sky/60 px-3 py-2 text-[13px] text-brand">
-            ✨ Maya picked this — a local favourite that fits your pace.
+            ✨ Isha picked this — a local favourite that fits your pace.
           </div>
         </div>
       </div>

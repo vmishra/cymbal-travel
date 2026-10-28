@@ -3,7 +3,7 @@
 Each search returns 4-5 Options spanning price tiers (value -> luxury), enriched
 with descriptions/durations/"why". Curated content for the happy-path cities; a
 generic generator keeps any city working. Plus weather, travel-time and packing
-helpers so Maya can do (and show) real planning work. Images are gradient tokens
+helpers so Isha can do (and show) real planning work. Images are gradient tokens
 (``grad:<seed>``) so nothing hits the network.
 """
 from __future__ import annotations

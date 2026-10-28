@@ -88,7 +88,7 @@ export function DetailModal({ item, onClose }: { item: Item; onClose: () => void
             </div>
           )}
 
-          <div className="rounded-xl bg-sky/60 px-3 py-2 text-[13px] text-brand">✨ Maya picked this for your trip.</div>
+          <div className="rounded-xl bg-sky/60 px-3 py-2 text-[13px] text-brand">✨ Isha picked this for your trip.</div>
         </div>
 
         {item.kind === 'hotel' && (

@@ -34,7 +34,7 @@ export function AssistantPane({ state, orbState, running, onSelect, onDismissOpt
     <div className="flex h-full flex-col gap-3">
       <div className="flex items-center gap-2">
         <span className="grid h-7 w-7 place-items-center rounded-full bg-gradient-to-br from-brand to-event text-white"><Icon name="sparkle" size={15} /></span>
-        <div className="text-[15px] font-semibold">Maya · your concierge</div>
+        <div className="text-[15px] font-semibold">Isha · your concierge</div>
       </div>
 
       {(trip || state.brief) && (

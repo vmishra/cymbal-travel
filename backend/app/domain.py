@@ -32,7 +32,7 @@ class Option(BaseModel):
     image_url: str = ""
     description: str = ""
     duration: str = ""
-    why: str = ""  # why Maya might pick this
+    why: str = ""  # why Isha might pick this
 
 
 class _BaseItem(BaseModel):

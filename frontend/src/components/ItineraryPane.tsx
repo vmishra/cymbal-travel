@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import type { Activity, Cost, Day, EventItem, Flight, HotelStay, Item, Packing, Slot, Transfer, Trip, Weather } from '../state/types'
 import { DOMAIN_COLOR, rupees } from '../theme'
+import { transitBetween } from '../lib/visuals'
 import { Icon } from './Icon'
 import { PlaceCard } from './PlaceCard'
 import { HotelCard } from './HotelCard'
@@ -12,6 +13,17 @@ import { DetailModal } from './DetailModal'
 type OpenFn = (item: Item) => void
 
 const SLOTS: [Slot, string][] = [['morning', '🌅 Morning'], ['afternoon', '☀️ Afternoon'], ['evening', '🌙 Evening']]
+const SLOT_LABEL: Record<Slot, string> = { morning: '🌅 Morning', afternoon: '☀️ Afternoon', evening: '🌙 Evening' }
+
+function TransitHop({ a, b }: { a: string; b: string }) {
+  const t = transitBetween(a, b)
+  return (
+    <div className="flex items-center gap-2 py-1 pl-4 text-[11px] text-muted">
+      <span className="h-5 w-px rounded bg-line" />
+      <span className="rounded-full bg-paper px-2 py-0.5 ring-1 ring-line">{t.icon} {t.label} · {t.mins} min</span>
+    </div>
+  )
+}
 
 function TravelRow({ item, onOpen }: { item: Flight | Transfer; onOpen: OpenFn }) {
   const color = DOMAIN_COLOR[item.kind]
@@ -46,7 +58,7 @@ function DayView({ day, weather, lastChangedId, onOpen }: { day: Day; weather?: 
   const travel = day.items.filter((i): i is Flight | Transfer => i.kind === 'flight' || i.kind === 'transfer')
   const stay = day.items.find((i): i is HotelStay => i.kind === 'hotel')
   const places = day.items.filter((i): i is Activity | EventItem => i.kind === 'activity' || i.kind === 'event')
-  const bySlot = (s: Slot) => places.filter((p) => (p.slot ?? 'afternoon') === s)
+  const ordered = SLOTS.flatMap(([slot]) => places.filter((p) => (p.slot ?? 'afternoon') === slot).map((p) => ({ p, slot })))
 
   return (
     <div>
@@ -55,18 +67,18 @@ function DayView({ day, weather, lastChangedId, onOpen }: { day: Day; weather?: 
         {weather && <span className="rounded-full bg-paper px-2.5 py-1 text-[12px] text-muted ring-1 ring-line">{weather.icon} {weather.low_c}–{weather.high_c}°C</span>}
       </div>
       {travel.length > 0 && <Section title="Getting there">{travel.map((t) => <TravelRow key={t.id} item={t} onOpen={onOpen} />)}</Section>}
-      <Section title="What to see & do">
-        {SLOTS.map(([slot, label]) => {
-          const items = bySlot(slot)
-          if (items.length === 0) return null
-          return (
-            <div key={slot}>
-              <div className="mb-1 mt-1 text-[12px] font-medium">{label}</div>
-              <div className="space-y-2">{items.map((p) => <PlaceCard key={p.id} item={p} flash={p.id === lastChangedId} onOpen={onOpen} />)}</div>
+      {ordered.length > 0 && (
+        <div className="mb-4">
+          <div className="mb-2 text-[13px] font-semibold text-muted">What to see &amp; do</div>
+          {ordered.map(({ p, slot }, i) => (
+            <div key={p.id}>
+              {(i === 0 || ordered[i - 1].slot !== slot) && <div className="mb-1 mt-1 text-[12px] font-medium">{SLOT_LABEL[slot]}</div>}
+              {i > 0 && <TransitHop a={ordered[i - 1].p.title} b={p.title} />}
+              <PlaceCard item={p} flash={p.id === lastChangedId} onOpen={onOpen} />
             </div>
-          )
-        })}
-      </Section>
+          ))}
+        </div>
+      )}
       {stay && <Section title="Where to stay"><HotelCard hotel={stay} flash={stay.id === lastChangedId} onOpen={onOpen} /></Section>}
     </div>
   )

@@ -5,6 +5,9 @@ import { useGeminiLiveVoice } from './voice/useGeminiLiveVoice'
 import { AssistantPane } from './components/AssistantPane'
 import { ItineraryPane } from './components/ItineraryPane'
 import { MapCanvas } from './components/MapCanvas'
+import { GoogleTripMap } from './components/GoogleTripMap'
+
+const MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined
 import { DisruptionBanner } from './components/DisruptionBanner'
 import { VoiceOrb, type OrbState } from './components/VoiceOrb'
 import { Icon } from './components/Icon'
@@ -102,7 +105,7 @@ export default function App() {
           <VoiceOrb state={orbState} onClick={start} size={168} />
           <div className="max-w-xl">
             <h1 className="text-3xl font-semibold tracking-tight">Plan your trip, just by talking.</h1>
-            <p className="mt-2 text-muted">Tell Maya where you'd like to go — she finds flights, hotels, activities and weather, and builds your day-by-day trip while you watch.</p>
+            <p className="mt-2 text-muted">Tell Isha where you'd like to go — she finds flights, hotels, activities and weather, and builds your day-by-day trip while you watch.</p>
           </div>
         </div>
       ) : (
@@ -131,7 +134,9 @@ export default function App() {
           </div>
 
           <div className="hidden min-h-0 lg:block">
-            <MapCanvas trip={state.trip} weather={state.weather} cities={state.mapCities} />
+            {MAPS_KEY
+              ? <GoogleTripMap apiKey={MAPS_KEY} trip={state.trip} weather={state.weather} cities={state.mapCities} />
+              : <MapCanvas trip={state.trip} weather={state.weather} cities={state.mapCities} />}
           </div>
         </main>
         </ErrorBoundary>

@@ -26,3 +26,13 @@ export function sceneFor(seed: string): string {
 export function hotScore(seed: string): string {
   return (7 + (hash(seed) % 29) / 10).toFixed(1) // 7.0–9.8
 }
+
+const MODES: [string, string][] = [['🚶', 'Walk'], ['🚇', 'Metro'], ['🚕', 'Taxi'], ['🚌', 'Bus'], ['🚆', 'Local train']]
+
+// Deterministic, plausible hop between two places so the UI always shows HOW you
+// get from one spot to the next (even if the model doesn't say it).
+export function transitBetween(a: string, b: string): { icon: string; label: string; mins: number } {
+  const h = hash(a + '→' + b)
+  const [icon, label] = MODES[h % MODES.length]
+  return { icon, label, mins: 6 + (h % 24) }
+}

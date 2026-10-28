@@ -1,170 +1,142 @@
-// A premium, accurate reference-architecture view: how to build an agentic travel
-// planner on Google Cloud. Brand-neutral, Google colours. Marks which pieces the
-// live demo uses vs. the fuller production blueprint (so the diagram can exceed the
-// demo, including newer models like Gemini 3.8 Live).
+// Exec-grade reference architecture — outcome-first, polished, Google colours.
+// Brand-neutral (Cymbal Travels). Accurate Google Cloud product names, presented
+// for CMOs / country heads / travel & airline execs, not just engineers.
 import { Icon } from './Icon'
+import type { ItemKind } from '../state/types'
 
-const BLUE = '#1a73e8', GREEN = '#34a853', AMBER = '#f9ab00', RED = '#ea4335', PURPLE = '#9334e6', TEAL = '#12a4b4', INK = '#5f6368'
+const BLUE = '#1a73e8', GREEN = '#34a853', AMBER = '#f9ab00', RED = '#ea4335', PURPLE = '#9334e6', TEAL = '#12a4b4', INK = '#3c4043'
 
-type Node = { name: string; tag?: string; used?: boolean }
-type Band = { layer: string; color: string; blurb: string; nodes: Node[] }
+type Pill = { name: string; tag?: string; demo?: boolean }
+type Layer = { n: string; icon: ItemKind | 'sparkle' | 'map' | 'mic'; title: string; value: string; color: string; pills: Pill[] }
 
-const PIPELINE = [
-  ['Traveller', 'Voice or web — one request'],
-  ['Agent Runtime', 'Intent + plan (ADK)'],
-  ['Parallel tools · MCP', 'Flights · hotels · maps · weather'],
-  ['Sub-agents compose', 'Flights / Hotels / Itinerary / Events'],
-  ['Gemini synthesises', 'Grounded, cited itinerary'],
-  ['Respond + write-back', 'Calendar · Wallet · Memory'],
+const PILLARS = [
+  ['Plan by voice, in minutes', 'Gemini Live turns a conversation into a complete trip.'],
+  ['Grounded, never guessed', 'Every place, route and forecast is real — Maps, Search, Weather.'],
+  ['Remembers every traveller', 'Agent memory personalises the next trip, and the next.'],
 ]
 
-const BANDS: Band[] = [
-  {
-    layer: 'Experience', color: BLUE,
-    blurb: 'How travellers interact — hands-free voice is the hero.',
-    nodes: [
-      { name: 'Voice — Gemini 3.8 Live (native audio)', tag: 'Live API', used: true },
-      { name: 'Web / Mobile app', used: true },
-      { name: 'Live Translate (97 languages)', tag: 'Preview' },
-      { name: 'Gemini TTS', tag: 'GA' },
-    ],
-  },
-  {
-    layer: 'Agent runtime', color: PURPLE,
-    blurb: 'Vertex AI Agent Engine orchestrates a graph of specialist agents.',
-    nodes: [
-      { name: 'Vertex AI Agent Engine · Agent Runtime', tag: 'GA' },
-      { name: 'ADK Orchestrator (fan-out / fan-in)', tag: 'GA', used: true },
-      { name: 'Flights · Hotels · Itinerary · Events agents', used: true },
-      { name: 'Payments agent', },
-      { name: 'A2A — partner agents', tag: 'Preview' },
-    ],
-  },
-  {
-    layer: 'Models (Gemini)', color: RED,
-    blurb: 'The latest Gemini models, matched to each job.',
-    nodes: [
-      { name: 'Gemini 3 Pro — reasoning & synthesis', tag: 'GA' },
-      { name: 'Gemini 3.8 Live — speech-to-speech', tag: 'Live', used: true },
-      { name: 'Nano Banana Pro — imagery', tag: 'GA', used: true },
-      { name: 'Embeddings', tag: 'GA' },
-      { name: 'Veo — video', tag: 'GA' },
-    ],
-  },
-  {
-    layer: 'Grounding & tools', color: GREEN,
-    blurb: 'Real-world facts over MCP — never hallucinated.',
-    nodes: [
-      { name: 'Google Maps Grounding — Places · Routes', tag: 'GA', used: true },
-      { name: 'Grounding with Google Search', tag: 'GA', used: true },
-      { name: 'WeatherNext — weather windows', tag: 'Preview', used: true },
-      { name: 'Function calling (async / NON_BLOCKING)', used: true },
-      { name: 'MCP Toolbox · JSON-RPC', tag: 'GA' },
-    ],
-  },
-  {
-    layer: 'Context & memory', color: AMBER,
-    blurb: 'The agent remembers preferences and holds long context.',
-    nodes: [
-      { name: 'Agent Memory Bank — long-term prefs', tag: 'GA' },
-      { name: 'Sessions — conversation state', tag: 'GA' },
-      { name: 'Long context + context caching', tag: 'GA' },
-      { name: 'Vertex AI Vector Search', tag: 'GA' },
-    ],
-  },
-  {
-    layer: 'Data', color: TEAL,
-    blurb: 'Managed data for inventory, semantics and analytics.',
-    nodes: [
-      { name: 'Spanner — bookings & inventory', tag: 'GA' },
-      { name: 'AlloyDB — vector / semantic search', tag: 'GA' },
-      { name: 'BigQuery — fares & demand', tag: 'GA' },
-      { name: 'Firestore · Memorystore', tag: 'GA' },
-    ],
-  },
-  {
-    layer: 'Platform & governance', color: INK,
-    blurb: 'Serverless runtime with safety and observability built in.',
-    nodes: [
-      { name: 'Cloud Run · GKE', tag: 'GA' },
-      { name: 'Model Armor — prompt-injection / DLP', tag: 'GA' },
-      { name: 'IAM / OAuth 2.0 — no keys in prod', tag: 'GA' },
-      { name: 'Cloud Trace · Audit', tag: 'GA' },
-    ],
-  },
+const VALUES: [ItemKind | 'mic' | 'map' | 'sparkle', string, string, string][] = [
+  ['mic', 'Voice-first', 'A natural, multilingual concierge your customers just talk to.', BLUE],
+  ['map', 'Trustworthy', 'Grounded in Google Maps, Search & WeatherNext — with citations.', GREEN],
+  ['sparkle', 'Personal', 'Long-term memory makes every itinerary feel hand-made.', AMBER],
+  ['hotel', 'Enterprise-ready', 'Runs on Vertex AI Agent Engine, governed and observable.', PURPLE],
+]
+
+const FLOW = ['Traveller speaks', 'Agent plans', 'Tools run in parallel', 'Specialists compose', 'Gemini synthesises', 'Booked & remembered']
+
+const LAYERS: Layer[] = [
+  { n: '01', icon: 'mic', title: 'Experience', color: BLUE,
+    value: 'How travellers engage — hands-free voice is the hero.',
+    pills: [{ name: 'Gemini Live · native audio', tag: 'Live', demo: true }, { name: 'Web & mobile', demo: true }, { name: 'Live Translate · 97 languages', tag: 'Preview' }, { name: 'Gemini TTS' }] },
+  { n: '02', icon: 'sparkle', title: 'Agent runtime', color: PURPLE,
+    value: 'Vertex AI Agent Engine orchestrates a team of specialist agents.',
+    pills: [{ name: 'Vertex AI Agent Engine' }, { name: 'ADK orchestrator', demo: true }, { name: 'Flights · Hotels · Itinerary · Events agents', demo: true }, { name: 'Payments agent' }, { name: 'Agent-to-Agent (A2A)', tag: 'Preview' }] },
+  { n: '03', icon: 'sparkle', title: 'Models — Gemini', color: RED,
+    value: 'The latest Gemini models, matched to each job.',
+    pills: [{ name: 'Gemini 3 Pro — reasoning' }, { name: 'Gemini 3.8 Live — speech', tag: 'Live', demo: true }, { name: 'Nano Banana Pro — imagery', demo: true }, { name: 'Embeddings' }, { name: 'Veo — video' }] },
+  { n: '04', icon: 'map', title: 'Grounding & tools', color: GREEN,
+    value: 'Real-world truth over MCP — the antidote to hallucination.',
+    pills: [{ name: 'Google Maps Grounding', demo: true }, { name: 'Grounding with Google Search', demo: true }, { name: 'WeatherNext', tag: 'Preview', demo: true }, { name: 'Function calling', demo: true }, { name: 'MCP Toolbox' }] },
+  { n: '05', icon: 'sparkle', title: 'Memory & context', color: AMBER,
+    value: 'The agent remembers preferences and holds the whole trip in context.',
+    pills: [{ name: 'Agent Memory Bank' }, { name: 'Sessions' }, { name: 'Long context + caching' }, { name: 'Vertex AI Vector Search' }] },
+  { n: '06', icon: 'hotel', title: 'Data', color: TEAL,
+    value: 'Managed data for inventory, semantic search and analytics.',
+    pills: [{ name: 'Spanner' }, { name: 'AlloyDB · vectors' }, { name: 'BigQuery' }, { name: 'Firestore' }, { name: 'Memorystore' }] },
+  { n: '07', icon: 'sparkle', title: 'Trust & platform', color: INK,
+    value: 'Serverless scale with safety and observability built in.',
+    pills: [{ name: 'Cloud Run · GKE' }, { name: 'Model Armor' }, { name: 'IAM / OAuth 2.0' }, { name: 'Cloud Trace · Audit' }] },
 ]
 
 export function ArchitecturePage() {
   return (
-    <div data-testid="architecture" className="h-full overflow-y-auto">
-      <div className="mx-auto max-w-5xl px-5 py-6">
+    <div data-testid="architecture" className="h-full overflow-y-auto bg-paper">
+      <div className="mx-auto max-w-5xl px-6 py-8">
         {/* hero */}
-        <div className="rounded-3xl bg-gradient-to-br from-[#1a73e8] via-[#9334e6] to-[#ea4335] p-6 text-white shadow-sm">
-          <div className="text-xs font-medium uppercase tracking-wide text-white/80">Reference architecture</div>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight">Build an agentic travel planner on Google Cloud</h1>
-          <p className="mt-2 max-w-2xl text-sm text-white/90">
-            How Gemini, Vertex AI Agent Engine, grounding and managed data come together into a voice-first
-            planner. The live demo runs a subset; this is the full state-of-the-art blueprint.
+        <div className="relative overflow-hidden rounded-[28px] p-8 text-white shadow-lg"
+          style={{ background: 'radial-gradient(130% 130% at 0% 0%, #1a73e8 0%, #7b3fe4 45%, #ea4335 100%)' }}>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/80">Google Cloud · Reference architecture</div>
+          <h1 className="mt-2 max-w-2xl text-[32px] font-semibold leading-[1.1] tracking-tight">The agentic travel stack</h1>
+          <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-white/90">
+            How a voice-first travel concierge is built end-to-end on Google Cloud — the same
+            foundations any travel, airline or hospitality brand can use to ship an AI agent customers love.
           </p>
-          <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
-            <span className="rounded-full bg-white/20 px-2.5 py-1">◆ Used in this demo</span>
-            <span className="rounded-full bg-white/15 px-2.5 py-1">GA / Preview = maturity</span>
-          </div>
-        </div>
-
-        {/* request pipeline */}
-        <div className="mt-6">
-          <div className="mb-2 text-sm font-semibold text-muted">Request flow</div>
-          <div className="flex flex-wrap items-stretch gap-2">
-            {PIPELINE.map(([t, s], i) => (
-              <div key={t} className="flex items-center gap-2">
-                <div className="min-w-[150px] rounded-xl bg-card p-3 ring-1 ring-line">
-                  <div className="text-[13px] font-semibold">{t}</div>
-                  <div className="text-[11px] text-muted">{s}</div>
-                </div>
-                {i < PIPELINE.length - 1 && <span className="text-brand">→</span>}
+          <div className="mt-6 grid gap-3 sm:grid-cols-3">
+            {PILLARS.map(([t, s]) => (
+              <div key={t} className="rounded-2xl bg-white/12 p-3 backdrop-blur-sm">
+                <div className="text-[14px] font-semibold">{t}</div>
+                <div className="mt-0.5 text-[12px] leading-snug text-white/85">{s}</div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* layered bands */}
-        <div className="mt-6 space-y-3">
-          {BANDS.map((b) => (
-            <div key={b.layer} className="overflow-hidden rounded-2xl bg-card ring-1 ring-line">
-              <div className="flex">
-                <div className="w-1.5 shrink-0" style={{ background: b.color }} />
-                <div className="flex-1 p-4">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <div className="text-sm font-semibold" style={{ color: b.color }}>{b.layer}</div>
-                    <div className="hidden text-[12px] text-muted sm:block">{b.blurb}</div>
-                  </div>
-                  <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                    {b.nodes.map((n) => (
-                      <div key={n.name} className="flex items-start gap-2 rounded-xl bg-paper p-2.5 ring-1 ring-line">
-                        <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-lg"
-                          style={{ color: b.color, background: b.color + '18' }}>
-                          <Icon name="sparkle" size={13} />
-                        </span>
-                        <div className="min-w-0">
-                          <div className="text-[13px] font-medium leading-tight">{n.name}</div>
-                          <div className="mt-0.5 flex items-center gap-1.5">
-                            {n.used && <span className="rounded-full bg-brand/10 px-1.5 text-[10px] font-semibold text-brand">◆ in demo</span>}
-                            {n.tag && <span className="rounded-full bg-black/5 px-1.5 text-[10px] text-muted">{n.tag}</span>}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
+        {/* value cards */}
+        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {VALUES.map(([icon, title, body, color]) => (
+            <div key={title} className="rounded-2xl bg-card p-4 ring-1 ring-line">
+              <span className="grid h-9 w-9 place-items-center rounded-xl" style={{ color, background: color + '18' }}><Icon name={icon} size={18} /></span>
+              <div className="mt-2.5 text-[15px] font-semibold">{title}</div>
+              <div className="mt-1 text-[12.5px] leading-snug text-muted">{body}</div>
             </div>
           ))}
         </div>
 
-        <p className="mt-5 text-center text-[12px] text-muted">
-          Cymbal Travels demo · grounded in Google Maps, Search & WeatherNext · voice by Gemini Live · images by Nano Banana.
-        </p>
+        {/* flow */}
+        <div className="mt-8">
+          <div className="mb-3 text-center text-[12px] font-semibold uppercase tracking-[0.15em] text-muted">From a sentence to a booked trip</div>
+          <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-2">
+            {FLOW.map((s, i) => (
+              <div key={s} className="flex items-center gap-2">
+                <div className="rounded-full bg-card px-3.5 py-1.5 text-[12.5px] font-medium ring-1 ring-line">
+                  <span className="mr-1.5 text-muted">{i + 1}</span>{s}
+                </div>
+                {i < FLOW.length - 1 && <span className="text-brand/60">→</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* layered stack */}
+        <div className="relative mt-8">
+          <div className="absolute bottom-6 left-[27px] top-6 w-0.5 bg-gradient-to-b from-brand/30 via-line to-line" aria-hidden />
+          <div className="space-y-3">
+            {LAYERS.map((L) => (
+              <div key={L.title} className="relative flex gap-4">
+                <div className="relative z-10 grid h-14 w-14 shrink-0 place-items-center rounded-2xl text-white shadow-sm"
+                  style={{ background: L.color }}>
+                  <div className="text-center leading-none">
+                    <Icon name={L.icon} size={16} />
+                    <div className="mt-0.5 text-[10px] font-semibold opacity-90">{L.n}</div>
+                  </div>
+                </div>
+                <div className="flex-1 rounded-2xl bg-card p-4 ring-1 ring-line">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <div className="text-[16px] font-semibold" style={{ color: L.color }}>{L.title}</div>
+                    <div className="text-[12.5px] text-muted">{L.value}</div>
+                  </div>
+                  <div className="mt-2.5 flex flex-wrap gap-1.5">
+                    {L.pills.map((p) => (
+                      <span key={p.name}
+                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] ring-1 ${p.demo ? 'bg-paper font-medium ring-line' : 'bg-card text-muted ring-line'}`}>
+                        <span className="h-1.5 w-1.5 rounded-full" style={{ background: p.demo ? L.color : '#c9ccd1' }} />
+                        {p.name}
+                        {p.tag && <span className="rounded bg-black/5 px-1 text-[10px] text-muted">{p.tag}</span>}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-4 text-[12px] text-muted">
+          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-brand" /> Live in this demo</span>
+          <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[#c9ccd1]" /> Production blueprint</span>
+          <span>·</span>
+          <span>Cymbal Travels — voice by Gemini Live · grounded by Google Maps, Search &amp; WeatherNext · imagery by Nano Banana</span>
+        </div>
       </div>
     </div>
   )

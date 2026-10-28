@@ -27,7 +27,7 @@ logger = logging.getLogger("cymbal.voice")
 
 
 def _function_response(fc, result: dict):
-    """Async (NON_BLOCKING) tool response. WHEN_IDLE lets Maya finish her current
+    """Async (NON_BLOCKING) tool response. WHEN_IDLE lets Isha finish her current
     sentence before narrating the result — smoother, and avoids the INTERRUPT path
     that can produce duplicate/overlapping audio."""
     kwargs = {"id": getattr(fc, "id", None), "name": fc.name, "response": result}

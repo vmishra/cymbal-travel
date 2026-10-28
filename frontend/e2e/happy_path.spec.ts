@@ -31,7 +31,7 @@ test('captures a planner screenshot mid-flow', async ({ page }) => {
   await expect(page.getByTestId('itinerary')).toBeVisible({ timeout: 20_000 })
   // wait for the plan to compose and cards to appear
   await expect(page.getByTestId('cost')).toBeVisible({ timeout: 20_000 })
-  await page.waitForTimeout(600)
+  await page.waitForTimeout(3000)
   await page.screenshot({ path: 'test-results/screens/02-planner.png', fullPage: true })
 })
 
@@ -39,7 +39,7 @@ test('architecture page renders', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'Architecture' }).click()
   await expect(page.getByTestId('architecture')).toBeVisible()
-  await expect(page.getByText(/Build an agentic travel planner/)).toBeVisible()
-  await expect(page.getByText('Gemini 3.8 Live — speech-to-speech')).toBeVisible()
+  await expect(page.getByText(/agentic travel stack/i)).toBeVisible()
+  await expect(page.getByText(/Gemini 3.8 Live/)).toBeVisible()
   await page.screenshot({ path: 'test-results/screens/04-architecture.png', fullPage: true })
 })

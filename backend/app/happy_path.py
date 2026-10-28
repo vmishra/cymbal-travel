@@ -1,6 +1,6 @@
 """The scripted Japan rehearsal — one continuous narrative: plan → enrich →
 live-edit → ask cost → post-sale. Replayed by the sim pipeline through the SAME
-real tools the live voice uses (no fake delays). Maya speaks chic Hinglish. Each
+real tools the live voice uses (no fake delays). Isha speaks chic Hinglish. Each
 step: {delay_ms, speaker, text, tool, args}. tool=None means speak only.
 """
 from __future__ import annotations
