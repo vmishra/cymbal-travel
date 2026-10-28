@@ -21,6 +21,7 @@ from .domain import (
     cost_breakdown,
     per_person_total,
 )
+from . import images
 from .mock_services import (
     get_activities,
     get_events,
@@ -340,7 +341,8 @@ def _h_add_activity(args, session):
     day_index = int(args.get("day_index", _last_day_index(session.trip, city)))
     name = args.get("name")
     if name:
-        item = Activity(id=f"act-{abs(hash(name)) % 10**8}", title=name, price_inr=int(args.get("price_inr", 3000)), city=city)
+        item = Activity(id=f"act-{abs(hash(name)) % 10**8}", title=name, price_inr=int(args.get("price_inr", 3000)),
+                        city=city, image_url=f"/api/img/{images.register('activity', name, city)}")
     else:
         opts = get_activities(city)
         chosen = _pick(opts, args.get("tier", "comfort"))
@@ -355,7 +357,9 @@ def _h_add_dinner(args, session):
     day_index = int(args.get("day_index", _last_day_index(session.trip, city)))
     where = args.get("name", "a local favourite")
     item = Activity(id=f"dinner-{day_index}-{abs(hash(where)) % 10**6}", title=f"Dinner at {where}",
-                    price_inr=int(args.get("price_inr", 2500)), city=city, time="evening")
+                    price_inr=int(args.get("price_inr", 2500)), city=city, time="evening", slot="evening",
+                    description=f"A cosy dinner at {where}.",
+                    image_url=f"/api/img/{images.register('activity', f'Dinner at {where} in {city}', city)}")
     session.add_item(day_index, item)
     return {"ok": True, "dinner": item.title}, [ev.item_add(day_index, item), ev.budget_update(session.trip)]
 
