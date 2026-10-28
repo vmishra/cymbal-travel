@@ -55,6 +55,11 @@ export function MapCanvas({ trip, weather, cities }: {
         ))}
       </div>
 
+      {/* plane tracing the route */}
+      {stops.length > 1 && (
+        <span className="plane-fly z-10 text-lg drop-shadow" style={{ transform: 'translate(-50%,-50%)' }} aria-hidden>✈️</span>
+      )}
+
       {/* city pins */}
       {stops.map((city, i) => {
         const w = weather[city]
