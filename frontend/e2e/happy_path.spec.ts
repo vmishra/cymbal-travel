@@ -34,3 +34,12 @@ test('captures a planner screenshot mid-flow', async ({ page }) => {
   await page.waitForTimeout(600)
   await page.screenshot({ path: 'test-results/screens/02-planner.png', fullPage: true })
 })
+
+test('architecture page renders', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Architecture' }).click()
+  await expect(page.getByTestId('architecture')).toBeVisible()
+  await expect(page.getByText(/Build an agentic travel planner/)).toBeVisible()
+  await expect(page.getByText('Gemini 3.8 Live — speech-to-speech')).toBeVisible()
+  await page.screenshot({ path: 'test-results/screens/04-architecture.png', fullPage: true })
+})

@@ -8,6 +8,8 @@ import { MapCanvas } from './components/MapCanvas'
 import { DisruptionBanner } from './components/DisruptionBanner'
 import { VoiceOrb, type OrbState } from './components/VoiceOrb'
 import { Icon } from './components/Icon'
+import { ArchitecturePage } from './components/ArchitecturePage'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import type { Item, Option } from './state/types'
 
 type Source = 'sim' | 'voice'
@@ -15,6 +17,7 @@ type Source = 'sim' | 'voice'
 export default function App() {
   const [state, dispatch] = useReducer(reducer, undefined, initialState)
   const [source, setSource] = useState<Source>('sim')
+  const [view, setView] = useState<'app' | 'arch'>('app')
   const [simRunning, setSimRunning] = useState(false)
   const [draft, setDraft] = useState('')
   const sockRef = useRef<Socket | null>(null)
@@ -78,6 +81,7 @@ export default function App() {
           <span className="text-lg font-semibold tracking-tight">Cymbal Travels</span>
           {state.modelLabel && <span className="rounded-full bg-sky px-2.5 py-0.5 text-xs font-medium text-brand">{state.modelLabel}</span>}
         </div>
+        <Toggle value={view} options={[['app', 'Planner'], ['arch', 'Architecture']]} onChange={(v) => setView(v as 'app' | 'arch')} />
         <div className="flex items-center gap-2 text-sm">
           <Toggle value={state.mode} options={[['plan', 'Plan'], ['postsale', 'Post-sale']]} onChange={(m) => dispatch({ type: 'mode_switch', payload: { mode: m } })} />
           <Toggle value={source} options={[['sim', 'Sim'], ['voice', 'Voice']]} onChange={(s) => setSource(s as Source)} />
@@ -89,7 +93,11 @@ export default function App() {
 
       {voice.error && source === 'voice' && <div className="shrink-0 bg-event/8 px-6 py-2 text-center text-sm text-event">{voice.error}</div>}
 
-      {!started ? (
+      {view === 'arch' ? (
+        <div className="min-h-0 flex-1 overflow-hidden">
+          <ErrorBoundary><ArchitecturePage /></ErrorBoundary>
+        </div>
+      ) : !started ? (
         <div className="hero-bg flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
           <VoiceOrb state={orbState} onClick={start} size={168} />
           <div className="max-w-xl">
@@ -98,6 +106,7 @@ export default function App() {
           </div>
         </div>
       ) : (
+        <ErrorBoundary>
         <main data-testid="workspace" className="grid min-h-0 flex-1 grid-cols-1 gap-3 p-3 lg:grid-cols-[360px_1fr_400px]">
           <div className="flex min-h-0 flex-col gap-2 rounded-2xl bg-card/60 p-3 ring-1 ring-line">
             <div className="min-h-0 flex-1 overflow-y-auto">
@@ -125,6 +134,7 @@ export default function App() {
             <MapCanvas trip={state.trip} weather={state.weather} cities={state.mapCities} />
           </div>
         </main>
+        </ErrorBoundary>
       )}
     </div>
   )

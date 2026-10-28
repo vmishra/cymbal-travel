@@ -105,8 +105,10 @@ export function ItineraryPane({ trip, weather, cost, packing, lastChangedId }: {
             {packing && <PackingPanel packing={packing} />}
             <TipsPanel />
           </div>
+        ) : trip.days[tab - 1] ? (
+          <DayView day={trip.days[tab - 1]} weather={weather[trip.days[tab - 1].city]} lastChangedId={lastChangedId} onOpen={setDetail} />
         ) : (
-          <DayView day={trip.days[tab - 1]} weather={weather[trip.days[tab - 1]?.city]} lastChangedId={lastChangedId} onOpen={setDetail} />
+          <div className="py-16 text-center text-muted">Select a day.</div>
         )}
       </div>
       {detail && <DetailModal item={detail} onClose={() => setDetail(null)} />}
