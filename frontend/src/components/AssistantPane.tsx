@@ -7,6 +7,7 @@ import { TranscriptRail } from './TranscriptRail'
 import { OptionsCarousel } from './OptionsCarousel'
 import { SupportCard } from './SupportCard'
 import { VoiceOrb, type OrbState } from './VoiceOrb'
+import { LivePanel } from './LivePanel'
 import { Icon } from './Icon'
 
 const SEASONS = ['Winter', 'Winter', 'Spring', 'Spring', 'Spring', 'Summer',
@@ -45,6 +46,8 @@ export function AssistantPane({ state, orbState, running, onSelect, onDismissOpt
           <StatTile value={budget ? rupees(budget) : '—'} label="Budget / person" icon={<Icon name="hotel" size={16} />} />
         </div>
       )}
+
+      {trip && <LivePanel city={firstCity} weather={w} />}
 
       {state.thinking.length > 0 && <ThinkingSteps steps={state.thinking} />}
       {Object.keys(state.grounding).length > 0 && (

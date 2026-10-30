@@ -31,7 +31,7 @@ from .mock_services import (
     get_travel_time,
     get_weather,
 )
-from .postsale_seed import BOOKED_REQUIREMENTS
+from .postsale_seed import BOOKED_REQUIREMENTS, CUSTOMER, FLIGHT_CHANGE_FEE
 from .seed_data import CITY_COORDS
 from .session import ItineraryError, ItinerarySession
 from .ui_events import AGENTS, GROUNDING
@@ -424,16 +424,21 @@ def _h_reschedule_flight(args, session):
         return _fail("no_results", "There's no flight on this trip to reschedule. Ask the traveller what they'd like to change."), [ev.toast("No flight on this trip.", "warn")]
     opts = get_flights(session.trip.origin, flight.destination, args.get("when", ""), _pax(session))
     _set_last_options(session, opts)
+    when = args.get("when") or "a later day"
+    _care_bill(session, "pc-flight", FLIGHT_CHANGE_FEE)
     events = [
         ev.thinking_step("Finding alternative flights", "running"),
         ev.agent_status("Flights", "running"), ev.grounding_ping("Search"),
         ev.options_show("flight", opts),
         ev.agent_status("Flights", "done"),
         ev.thinking_step("Finding alternative flights", "done"),
+        ev.pending_change("pc-flight", "flight", f"Move flight to {when}",
+                          detail=f"{flight.origin} → {flight.destination} · same cabin",
+                          amount_inr=FLIGHT_CHANGE_FEE, status="proposed"),
     ]
-    return _ok(f"Found {len(opts)} alternative flights to {flight.destination}. Tell the traveller the best option "
-               f"and the fare, then ask them to confirm before you book. Do not search again.",
-               options=_opts_summary(opts)), events
+    return _ok(f"Found {len(opts)} alternative flights to {flight.destination}. The fare difference is "
+               f"about ₹{FLIGHT_CHANGE_FEE:,}. Tell the traveller and ask them to confirm before you book. "
+               f"Do not search again.", options=_opts_summary(opts)), events
 
 
 def _booking_ref() -> str:
@@ -458,6 +463,149 @@ def _h_rebook_flight(args, session):
         ev.options_clear(), ev.item_swap(new_item), ev.budget_update(session.trip), ev.cost_summary(session.trip),
         ev.support_card("Flight booked ✓", f"You're confirmed on {opt.name}. Reference {ref}.", "success"),
     ]
+
+
+# --------------------------------------------------------------------------- #
+# Post-sale "Cymbal Care" — a mid-trip customer support case
+# --------------------------------------------------------------------------- #
+_CARE_FETCH = ["Fetching customer details", "Fetching booking & itinerary", "Locating current leg"]
+
+
+def _care_city(session) -> str:
+    """The city the customer is physically in right now (their current leg)."""
+    days = session.trip.days if session.trip else []
+    if days:
+        idx = max(0, min(CUSTOMER.get("current_day_index", 0), len(days) - 1))
+        return days[idx].city
+    if session.trip and session.trip.destinations:
+        return session.trip.destinations[0]
+    return "Tokyo"
+
+
+def _care_bill(session, change_id: str, amount: int) -> int:
+    """Track what the open case will cost, keyed by change id (idempotent)."""
+    items = getattr(session, "care_items", None)
+    if items is None:
+        items = session.care_items = {}
+    items[change_id] = amount
+    session.care_due = sum(items.values())
+    return session.care_due
+
+
+def _h_open_care(args, session):
+    """Open a support case: load the booking and surface who's calling + where they are."""
+    _ensure_postsale_trip(session)
+    session.care_items = {}
+    session.care_due = 0
+    city = _care_city(session)
+    events = [ev.thinking_step(s, "running") for s in _CARE_FETCH]
+    events += [
+        ev.itinerary_set(session.trip),
+        ev.customer_context(CUSTOMER, city, len(session.trip.days)),
+        ev.cost_summary(session.trip),
+        ev.budget_update(session.trip),
+        ev.map_update(list(session.trip.destinations), _map_pins(session.trip)),
+    ]
+    events += [ev.thinking_step(s, "done") for s in _CARE_FETCH]
+    return _ok(f"{CUSTOMER['name']} is on Day {CUSTOMER['current_day_index'] + 1} in {city}. "
+               f"Greet them warmly by name and ask how you can help."), events
+
+
+def _h_confirm_change_detail(args, session):
+    """Keep the traveller's existing seats / party / meal preferences on the change."""
+    _ensure_postsale_trip(session)
+    detail = f"{CUSTOMER['party']} · seats {CUSTOMER['seats']} · {CUSTOMER['meal']} meals"
+    return _ok(f"Keeping {detail}."), [
+        ev.pending_change("pc-detail", "detail", "Seats & preferences unchanged",
+                          detail=detail, amount_inr=0, status="confirmed"),
+    ]
+
+
+def _h_extend_hotel(args, session):
+    """Extend the current hotel by one night (for the extra day)."""
+    _ensure_postsale_trip(session)
+    city = args.get("city") or _care_city(session)
+    stay = next((s for s in session.trip.stays if s.city == city), None)
+    if stay is None:
+        return _fail("no_results", f"No hotel in {city} to extend. Ask the traveller which city."), [
+            ev.toast(f"No hotel in {city} to extend.", "warn")]
+    per_night = max(1, stay.price_inr // max(1, stay.nights))
+    name = stay.hotel
+    session.add_night(city)
+    _care_bill(session, "pc-hotel", per_night)
+    return _ok(f"Extended {name} in {city} by one night (₹{per_night:,}/night)."), [
+        ev.itinerary_set(session.trip),
+        ev.pending_change("pc-hotel", "hotel", f"Extra night · {name}",
+                          detail=f"{city} · +1 night", amount_inr=per_night, status="confirmed"),
+        ev.budget_update(session.trip),
+    ]
+
+
+def _h_find_airport_hotel(args, session):
+    """Alternative to extending: book a fresh hotel near the airport and swap it in."""
+    _ensure_postsale_trip(session)
+    city = args.get("city") or _care_city(session)
+    opts = get_hotels(city, 1, _pax(session), "near the airport")
+    _set_last_options(session, opts)
+    chosen = _pick(opts, args.get("tier", "comfort"))
+    stay = next((s for s in session.trip.stays if s.city == city), None)
+    events = [ev.options_show("hotel", opts)]
+    if stay is not None:
+        diff = max(0, chosen.price_inr - max(1, stay.price_inr // max(1, stay.nights)))
+        session.swap_item(stay.id, chosen)
+        new_item = _find_item(session.trip, stay.id)
+        _care_bill(session, "pc-hotel", diff)
+        events += [
+            ev.item_swap(new_item),
+            ev.pending_change("pc-hotel", "hotel", f"New hotel near {city} airport",
+                              detail=chosen.name, amount_inr=diff, status="confirmed"),
+            ev.budget_update(session.trip),
+        ]
+    return _ok(f"Booked {chosen.name} near {city} airport."), events
+
+
+def _h_request_payment(args, session):
+    """Show the amount due and the authorized card on file."""
+    _ensure_postsale_trip(session)
+    amount = getattr(session, "care_due", 0)
+    pay = CUSTOMER["payment"]
+    return _ok(f"Amount due is ₹{amount:,}. Ask whether to charge the authorized {pay['brand']} card "
+               f"ending {pay['last4']}, or use a different method."), [
+        ev.payment_request(amount, pay["brand"], pay["last4"]),
+    ]
+
+
+def _h_confirm_payment(args, session):
+    """Charge the card and book every pending change end-to-end."""
+    _ensure_postsale_trip(session)
+    amount = getattr(session, "care_due", 0)
+    items = getattr(session, "care_items", {})
+    pay = CUSTOMER["payment"]
+    ref = _booking_ref()
+    events: list[dict] = []
+    if "pc-flight" in items:
+        flight = _first_flight(session.trip)
+        if flight is not None:
+            opt = _get_last_option(session, args.get("option_id", "")) or _pick(
+                get_flights(session.trip.origin, flight.destination, session.trip.start_date, _pax(session)),
+                args.get("tier", "comfort"))
+            session.rebook_flight(flight.id, opt)
+            events += [
+                ev.item_swap(_find_item(session.trip, flight.id)),
+                ev.pending_change("pc-flight", "flight", "Flight rebooked",
+                                  detail="Confirmed", amount_inr=FLIGHT_CHANGE_FEE, status="confirmed"),
+            ]
+    events += [
+        ev.payment_confirmed(amount, pay["brand"], pay["last4"], ref),
+        ev.cost_summary(session.trip),
+        ev.budget_update(session.trip),
+        ev.support_card("Payment successful ✓",
+                        f"₹{amount:,} charged to {pay['brand']} ending {pay['last4']}. Confirmation {ref}.",
+                        "success"),
+    ]
+    return _ok(f"Charged ₹{amount:,} to the {pay['brand']} ending {pay['last4']}. Everything is rebooked — "
+               f"confirmation reference {ref}. Read the reference back ONE CHARACTER AT A TIME.",
+               booking_ref=ref, amount_inr=amount), events
 
 
 def _h_extend_trip(args, session):
@@ -635,6 +783,13 @@ _HANDLERS = {
     "extend_trip": _h_extend_trip,
     "request_refund": _h_request_refund,
     "add_night": _h_add_night,
+    # post-sale "Cymbal Care"
+    "open_care": _h_open_care,
+    "confirm_change_detail": _h_confirm_change_detail,
+    "extend_hotel": _h_extend_hotel,
+    "find_airport_hotel": _h_find_airport_hotel,
+    "request_payment": _h_request_payment,
+    "confirm_payment": _h_confirm_payment,
 }
 
 
@@ -719,4 +874,22 @@ TOOL_DECLARATIONS: list[dict] = [
      "parameters": {"type": "object", "properties": {"item_id": _str("id")}, "required": ["item_id"]}},
     {"name": "add_night", "description": "Add a night in a city during planning.",
      "parameters": {"type": "object", "properties": {"city": _str("city")}}},
+    # post-sale "Cymbal Care"
+    {"name": "open_care", "description": "Open a post-sale support case: pull up the caller's booking and show "
+     "who they are and where they are in their trip right now. Call this first in post-sale.",
+     "parameters": {"type": "object", "properties": {}}},
+    {"name": "confirm_change_detail", "description": "Keep the traveller's existing seats, party size and meal "
+     "preferences on a change. Invoke after they say to keep the same details.",
+     "parameters": {"type": "object", "properties": {}}},
+    {"name": "extend_hotel", "description": "Extend the traveller's current hotel by one night (for an extra day).",
+     "parameters": {"type": "object", "properties": {"city": _str("city")}}},
+    {"name": "find_airport_hotel", "description": "Book a fresh hotel near the city's airport and swap it in "
+     "(alternative to extending the current hotel).",
+     "parameters": {"type": "object", "properties": {"city": _str("city")}}},
+    {"name": "request_payment", "description": "Show the amount due for the pending changes and the authorized "
+     "card on file. Invoke once the traveller has agreed to the changes, before charging.",
+     "parameters": {"type": "object", "properties": {}}},
+    {"name": "confirm_payment", "description": "Charge the authorized card and book every pending change "
+     "end-to-end. Invoke ONLY after the traveller confirms the payment method.",
+     "parameters": {"type": "object", "properties": {"option_id": _str("flight option id"), "tier": _str("tier")}}},
 ]

@@ -7,18 +7,21 @@ from __future__ import annotations
 import asyncio
 from typing import Awaitable, Callable
 
-from .happy_path import SIM_SCRIPT
+from .happy_path import CARE_SCRIPT, SIM_SCRIPT
 from .session import ItinerarySession
 from .tools import dispatch
 
 Send = Callable[[dict], Awaitable[None]]
 
+SCRIPTS = {"plan": SIM_SCRIPT, "postsale": CARE_SCRIPT}
 
-async def run_sim(send: Send, fast: bool = False) -> None:
-    """Replay SIM_SCRIPT, emitting transcript + ui frames on the script timeline."""
+
+async def run_sim(send: Send, fast: bool = False, scenario: str = "plan") -> None:
+    """Replay a scripted scenario, emitting transcript + ui frames on its timeline."""
+    script = SCRIPTS.get(scenario, SIM_SCRIPT)
     session = ItinerarySession()
     await send({"kind": "ready", "model_label": "Cymbal Sim"})
-    for step in SIM_SCRIPT:
+    for step in script:
         delay = 0 if fast else step.get("delay_ms", 0) / 1000.0
         if delay:
             await asyncio.sleep(delay)

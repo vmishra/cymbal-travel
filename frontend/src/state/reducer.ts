@@ -30,6 +30,9 @@ export function initialState(): AppState {
     packing: null,
     cost: null,
     thinking: [],
+    customer: null,
+    pendingChanges: [],
+    payment: null,
   }
 }
 
@@ -140,6 +143,26 @@ export function reducer(state: AppState, event: UiEvent): AppState {
 
     case 'support_card':
       return { ...state, supportCards: [...state.supportCards, { title: p.title, body: p.body, kind: p.kind }] }
+
+    // --- post-sale ("Cymbal Care") ---
+    case 'customer_context':
+      // A fresh case: reset any prior pending changes / payment, keep the booked trip.
+      return { ...state, customer: { customer: p.customer, current_city: p.current_city, total_days: p.total_days }, pendingChanges: [], payment: null }
+
+    case 'pending_change': {
+      const next = { id: p.id, kind: p.kind, label: p.label, detail: p.detail, amount_inr: p.amount_inr ?? 0, status: p.status }
+      const idx = state.pendingChanges.findIndex((c) => c.id === p.id)
+      const pendingChanges = [...state.pendingChanges]
+      if (idx >= 0) pendingChanges[idx] = next
+      else pendingChanges.push(next)
+      return { ...state, pendingChanges }
+    }
+
+    case 'payment_request':
+      return { ...state, payment: { status: 'requested', amount_inr: p.amount_inr, brand: p.brand, last4: p.last4 } }
+
+    case 'payment_confirmed':
+      return { ...state, payment: { status: 'paid', amount_inr: p.amount_inr, brand: p.brand, last4: p.last4, ref: p.ref } }
 
     case 'toast':
       return { ...state, toasts: [...state.toasts, { id: _toastId++, message: p.message, level: p.level }] }

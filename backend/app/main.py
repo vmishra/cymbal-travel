@@ -53,10 +53,11 @@ async def voice_endpoint(ws: WebSocket) -> None:
 async def sim_ws(ws: WebSocket) -> None:
     await ws.accept()
     fast = ws.query_params.get("fast") == "1"
+    scenario = ws.query_params.get("scenario") or "plan"
     try:
         msg = await ws.receive_json()
         if msg.get("kind") == "start":
-            await run_sim(ws.send_json, fast=fast)
+            await run_sim(ws.send_json, fast=fast, scenario=scenario)
     except WebSocketDisconnect:
         return
     finally:

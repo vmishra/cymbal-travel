@@ -55,6 +55,38 @@ describe('reducer', () => {
   })
 })
 
+describe('post-sale (Cymbal Care)', () => {
+  const customer = {
+    name: 'Vikas Mishra', party: '2 adults · 1 child', booking_ref: 'CYMBAL-7K2D',
+    current_day_index: 2, payment: { brand: 'Visa', last4: '4242' },
+  }
+
+  it('customer_context sets the case and resets any prior pending changes', () => {
+    let s = reducer(initialState(), { type: 'pending_change', payload: { id: 'old', kind: 'flight', label: 'stale', amount_inr: 1, status: 'proposed' } })
+    s = reducer(s, { type: 'customer_context', payload: { customer, current_city: 'Tokyo', total_days: 7 } })
+    expect(s.customer?.customer.name).toBe('Vikas Mishra')
+    expect(s.customer?.current_city).toBe('Tokyo')
+    expect(s.pendingChanges).toHaveLength(0)
+    expect(s.payment).toBeNull()
+  })
+
+  it('pending_change upserts by id (propose then confirm)', () => {
+    let s = reducer(initialState(), { type: 'pending_change', payload: { id: 'pc-flight', kind: 'flight', label: 'Move flight', amount_inr: 10000, status: 'proposed' } })
+    expect(s.pendingChanges).toHaveLength(1)
+    s = reducer(s, { type: 'pending_change', payload: { id: 'pc-flight', kind: 'flight', label: 'Flight rebooked', amount_inr: 10000, status: 'confirmed' } })
+    expect(s.pendingChanges).toHaveLength(1)
+    expect(s.pendingChanges[0].status).toBe('confirmed')
+  })
+
+  it('payment_request then payment_confirmed tracks the charge', () => {
+    let s = reducer(initialState(), { type: 'payment_request', payload: { amount_inr: 12000, brand: 'Visa', last4: '4242' } })
+    expect(s.payment?.status).toBe('requested')
+    s = reducer(s, { type: 'payment_confirmed', payload: { amount_inr: 12000, brand: 'Visa', last4: '4242', ref: 'CYMBAL-ABCD' } })
+    expect(s.payment?.status).toBe('paid')
+    expect(s.payment?.ref).toBe('CYMBAL-ABCD')
+  })
+})
+
 describe('screen advances on trip_brief', () => {
   it('sets brief so the workspace (trip||brief) shows', () => {
     const s = reducer(initialState(), { type: 'trip_brief', payload: { title: 'Japan', origin: 'Bangalore', destinations: ['Tokyo'], nights: 7, travellers: [], budget_per_person: 200000 } })

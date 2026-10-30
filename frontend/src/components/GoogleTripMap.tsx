@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { Trip, Weather } from '../state/types'
-import { DOMAIN_COLOR } from '../theme'
+import type { Item, Trip, Weather } from '../state/types'
+import { DOMAIN_COLOR, rupees } from '../theme'
 import { hotScore, sceneFor } from '../lib/visuals'
+import { Icon } from './Icon'
+import { SmartImage } from './SmartImage'
 import { MapCanvas } from './MapCanvas'
 
 let scriptPromise: Promise<void> | null = null
@@ -39,14 +41,47 @@ const MAP_STYLE = [
   { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#cfe3fb' }] },
 ]
 
-export function GoogleTripMap({ apiKey, trip, weather, cities }: {
+function itemCity(it: Item): string {
+  return 'city' in it ? (it as any).city : (it as any).destination || ''
+}
+
+export function GoogleTripMap({ apiKey, trip, weather, cities, focus, onClearFocus }: {
   apiKey: string; trip: Trip | null; weather: Record<string, Weather>; cities: string[]
+  focus?: Item | null; onClearFocus?: () => void
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const mapRef = useRef<any>(null)
   const overlaysRef = useRef<any[]>([])
+  const focusMarkerRef = useRef<any>(null)
   const [failed, setFailed] = useState(false)
   const [selected, setSelected] = useState<string | null>(null)
+
+  // Pan + highlight when a place is clicked in the itinerary.
+  useEffect(() => {
+    const g = (window as any).google
+    if (!focus) { focusMarkerRef.current?.setMap(null); focusMarkerRef.current = null; return }
+    if (!mapRef.current || !g?.maps) return
+    const city = itemCity(focus)
+    if (!city) return
+    let cancelled = false
+    const go = (p: { lat: number; lng: number }) => {
+      if (cancelled) return
+      const map = mapRef.current
+      map.panTo(p)
+      map.setZoom(11)
+      focusMarkerRef.current?.setMap(null)
+      focusMarkerRef.current = new g.maps.Marker({
+        position: p, map, animation: g.maps.Animation.BOUNCE,
+        icon: { path: g.maps.SymbolPath.CIRCLE, scale: 13, fillColor: '#ea4335', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 4 },
+        zIndex: 999,
+      })
+    }
+    if (geoCache.has(city)) go(geoCache.get(city)!)
+    else new g.maps.Geocoder().geocode({ address: city }, (r: any, s: string) => {
+      if (s === 'OK' && r[0]) { const l = r[0].geometry.location; const p = { lat: l.lat(), lng: l.lng() }; geoCache.set(city, p); go(p) }
+    })
+    return () => { cancelled = true }
+  }, [focus])
 
   const stops = useMemo(() => {
     const list = trip ? [trip.origin, ...trip.destinations] : cities
@@ -120,7 +155,34 @@ export function GoogleTripMap({ apiKey, trip, weather, cities }: {
   return (
     <div data-testid="map" className="relative h-full overflow-hidden rounded-2xl ring-1 ring-line">
       <div ref={ref} className="h-full w-full" />
-      {selected && (
+
+      {focus && (
+        <div data-testid="map-listing" className="anim-cardin absolute bottom-3 left-3 right-3 overflow-hidden rounded-2xl bg-white/95 shadow-xl ring-1 ring-line backdrop-blur">
+          <div className="flex">
+            <SmartImage src={focus.image_url} seed={focus.title} className="h-24 w-28 shrink-0" alt={focus.title} />
+            <div className="min-w-0 flex-1 p-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="truncate text-[15px] font-semibold leading-tight">{focus.title}</div>
+                  <div className="mt-0.5 text-[12px] text-muted">🔥 {hotScore(focus.title)} · {itemCity(focus)}{'duration' in focus && (focus as any).duration ? ` · ${(focus as any).duration}` : ''}</div>
+                </div>
+                <button onClick={() => { focusMarkerRef.current?.setMap(null); onClearFocus?.() }}
+                  className="shrink-0 rounded-full px-2 text-muted hover:bg-paper">✕</button>
+              </div>
+              {focus.description && <div className="mt-1 line-clamp-2 text-[12px] text-muted">{focus.description}</div>}
+              <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px]">
+                <span className="inline-flex items-center gap-1 rounded-full bg-sky px-2 py-0.5 font-medium text-brand">
+                  <Icon name={(focus.kind === 'activity' || focus.kind === 'event' || focus.kind === 'hotel' || focus.kind === 'flight' || focus.kind === 'transfer') ? focus.kind : 'map'} size={11} /> On the map
+                </span>
+                {focus.price_inr > 0 && <span className="tabular rounded-full bg-paper px-2 py-0.5 text-muted ring-1 ring-line">{rupees(focus.price_inr)}</span>}
+                {weather[itemCity(focus)] && <span className="rounded-full bg-paper px-2 py-0.5 text-muted ring-1 ring-line">{weather[itemCity(focus)].icon} {weather[itemCity(focus)].low_c}–{weather[itemCity(focus)].high_c}°C</span>}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!focus && selected && (
         <div className="anim-cardin absolute bottom-3 left-3 right-3 rounded-2xl bg-white/95 p-3 shadow-lg ring-1 ring-line backdrop-blur">
           <div className="flex items-start justify-between">
             <div>

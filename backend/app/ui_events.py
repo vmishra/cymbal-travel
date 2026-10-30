@@ -91,6 +91,35 @@ def support_card(title: str, body: str, kind: str = "info") -> Event:
     return {"type": "support_card", "payload": {"title": title, "body": body, "kind": kind}}
 
 
+# --- post-sale ("Cymbal Care") ------------------------------------------------ #
+def customer_context(customer: dict, current_city: str, total_days: int) -> Event:
+    """Who's on the line + where they are in their trip right now. Resets the case."""
+    return {"type": "customer_context", "payload": {
+        "customer": customer, "current_city": current_city, "total_days": total_days,
+    }}
+
+
+def pending_change(id: str, kind: str, label: str, detail: str = "",
+                   amount_inr: int = 0, status: str = "proposed") -> Event:
+    """A line in the case panel's 'pending changes'. status: proposed | confirmed."""
+    return {"type": "pending_change", "payload": {
+        "id": id, "kind": kind, "label": label, "detail": detail,
+        "amount_inr": amount_inr, "status": status,
+    }}
+
+
+def payment_request(amount_inr: int, brand: str, last4: str) -> Event:
+    return {"type": "payment_request", "payload": {
+        "amount_inr": amount_inr, "brand": brand, "last4": last4,
+    }}
+
+
+def payment_confirmed(amount_inr: int, brand: str, last4: str, ref: str) -> Event:
+    return {"type": "payment_confirmed", "payload": {
+        "amount_inr": amount_inr, "brand": brand, "last4": last4, "ref": ref,
+    }}
+
+
 def toast(message: str, level: str = "info") -> Event:
     return {"type": "toast", "payload": {"message": message, "level": level}}
 

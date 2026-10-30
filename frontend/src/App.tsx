@@ -6,9 +6,9 @@ import { AssistantPane } from './components/AssistantPane'
 import { ItineraryPane } from './components/ItineraryPane'
 import { MapCanvas } from './components/MapCanvas'
 import { GoogleTripMap } from './components/GoogleTripMap'
+import { PostSaleView } from './components/PostSaleView'
 
 const MAPS_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined
-import { DisruptionBanner } from './components/DisruptionBanner'
 import { VoiceOrb, type OrbState } from './components/VoiceOrb'
 import { Icon } from './components/Icon'
 import { ArchitecturePage } from './components/ArchitecturePage'
@@ -21,6 +21,7 @@ export default function App() {
   const [state, dispatch] = useReducer(reducer, undefined, initialState)
   const [source, setSource] = useState<Source>('sim')
   const [view, setView] = useState<'app' | 'arch'>('app')
+  const [focusItem, setFocusItem] = useState<Item | null>(null)
   const [simRunning, setSimRunning] = useState(false)
   const [draft, setDraft] = useState('')
   const sockRef = useRef<Socket | null>(null)
@@ -39,12 +40,13 @@ export default function App() {
     if (source === 'voice') { voice.start(); return }
     sockRef.current?.close()
     const fast = new URLSearchParams(location.search).get('fast') === '1'
+    const scenario = state.mode === 'postsale' ? 'postsale' : 'plan'
     setSimRunning(true)
-    sockRef.current = openSocket(`/api/ws/sim?fast=${fast ? 1 : 0}`, handleFrame, {
+    sockRef.current = openSocket(`/api/ws/sim?fast=${fast ? 1 : 0}&scenario=${scenario}`, handleFrame, {
       onOpen: () => sockRef.current?.sendJson({ kind: 'start' }),
       onClose: () => setSimRunning(false),
     })
-  }, [source, handleFrame, voice])
+  }, [source, handleFrame, voice, state.mode])
 
   const stop = useCallback(() => {
     if (source === 'voice') { voice.stop(); return }
@@ -76,6 +78,14 @@ export default function App() {
 
   const started = state.trip || state.brief
 
+  const voiceForm = source === 'voice' && running ? (
+    <form onSubmit={sendDraft} className="flex w-full max-w-md shrink-0 gap-2">
+      <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Type instead of talking…"
+        className="flex-1 rounded-full bg-paper px-4 py-2 text-sm ring-1 ring-line outline-none focus:ring-brand" />
+      <button type="submit" className="rounded-full bg-brand px-4 py-2 text-sm font-medium text-white">Send</button>
+    </form>
+  ) : null
+
   return (
     <div className="flex h-[100dvh] flex-col bg-paper text-ink">
       <header className="flex shrink-0 items-center justify-between border-b border-line bg-card/80 px-5 py-2.5 backdrop-blur">
@@ -100,6 +110,11 @@ export default function App() {
         <div className="min-h-0 flex-1 overflow-hidden">
           <ErrorBoundary><ArchitecturePage /></ErrorBoundary>
         </div>
+      ) : state.mode === 'postsale' ? (
+        <ErrorBoundary>
+          <PostSaleView state={state} orbState={orbState} running={running}
+            onOrbClick={running ? stop : start} voiceInput={voiceForm} />
+        </ErrorBoundary>
       ) : !started ? (
         <div className="hero-bg flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center">
           <VoiceOrb state={orbState} onClick={start} size={168} />
@@ -127,15 +142,14 @@ export default function App() {
           </div>
 
           <div className="flex min-h-0 flex-col gap-3 rounded-2xl bg-card p-4 shadow-sm ring-1 ring-line">
-            {state.disruption && state.mode === 'postsale' && <DisruptionBanner message={state.disruption.message} />}
             {state.trip
-              ? <ItineraryPane trip={state.trip} weather={state.weather} cost={state.cost} packing={state.packing} lastChangedId={state.lastChangedId} />
+              ? <ItineraryPane trip={state.trip} weather={state.weather} cost={state.cost} packing={state.packing} lastChangedId={state.lastChangedId} onOpen={MAPS_KEY ? setFocusItem : undefined} />
               : <div className="grid flex-1 place-items-center text-muted">Composing your itinerary…</div>}
           </div>
 
           <div className="hidden min-h-0 lg:block">
             {MAPS_KEY
-              ? <GoogleTripMap apiKey={MAPS_KEY} trip={state.trip} weather={state.weather} cities={state.mapCities} />
+              ? <GoogleTripMap apiKey={MAPS_KEY} trip={state.trip} weather={state.weather} cities={state.mapCities} focus={focusItem} onClearFocus={() => setFocusItem(null)} />
               : <MapCanvas trip={state.trip} weather={state.weather} cities={state.mapCities} />}
           </div>
         </main>

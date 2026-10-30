@@ -91,7 +91,7 @@ export function ArchitecturePage() {
                 <div className="rounded-full bg-card px-3.5 py-1.5 text-[12.5px] font-medium ring-1 ring-line">
                   <span className="mr-1.5 text-muted">{i + 1}</span>{s}
                 </div>
-                {i < FLOW.length - 1 && <span className="text-brand/60">→</span>}
+                {i < FLOW.length - 1 && <span className="anim-pulse text-brand">→</span>}
               </div>
             ))}
           </div>
@@ -99,7 +99,7 @@ export function ArchitecturePage() {
 
         {/* layered stack */}
         <div className="relative mt-8">
-          <div className="absolute bottom-6 left-[27px] top-6 w-0.5 bg-gradient-to-b from-brand/30 via-line to-line" aria-hidden />
+          <div className="flow-spine absolute bottom-6 left-[27px] top-6 w-0.5" aria-hidden />
           <div className="space-y-3">
             {LAYERS.map((L) => (
               <div key={L.title} className="relative flex gap-4">
@@ -119,7 +119,7 @@ export function ArchitecturePage() {
                     {L.pills.map((p) => (
                       <span key={p.name}
                         className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] ring-1 ${p.demo ? 'bg-paper font-medium ring-line' : 'bg-card text-muted ring-line'}`}>
-                        <span className="h-1.5 w-1.5 rounded-full" style={{ background: p.demo ? L.color : '#c9ccd1' }} />
+                        <span className={`h-1.5 w-1.5 rounded-full ${p.demo ? 'blink' : ''}`} style={{ background: p.demo ? L.color : '#c9ccd1' }} />
                         {p.name}
                         {p.tag && <span className="rounded bg-black/5 px-1 text-[10px] text-muted">{p.tag}</span>}
                       </span>

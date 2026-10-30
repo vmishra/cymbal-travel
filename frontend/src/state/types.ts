@@ -79,6 +79,21 @@ export interface SupportCard { title: string; body: string; kind: string }
 export interface Toast { id: number; message: string; level: string }
 export interface Line { id: number; role: string; data: string }
 
+// --- post-sale ("Cymbal Care") ---
+export interface PaymentMethod { brand: string; last4: string; holder?: string; label?: string }
+export interface Customer {
+  name: string; party: string; booking_ref: string; loyalty?: string; phone?: string
+  current_day_index: number; seats?: string; meal?: string; payment: PaymentMethod
+}
+export interface CustomerContext { customer: Customer; current_city: string; total_days: number }
+export interface PendingChange {
+  id: string; kind: 'flight' | 'hotel' | 'detail' | 'activity' | 'refund'
+  label: string; detail?: string; amount_inr: number; status: 'proposed' | 'confirmed'
+}
+export interface Payment {
+  status: 'requested' | 'paid'; amount_inr: number; brand: string; last4: string; ref?: string
+}
+
 export interface AppState {
   mode: Mode
   brief: TripBrief | null
@@ -99,6 +114,10 @@ export interface AppState {
   packing: Packing | null
   cost: Cost | null
   thinking: ThinkingStep[]
+  // post-sale ("Cymbal Care")
+  customer: CustomerContext | null
+  pendingChanges: PendingChange[]
+  payment: Payment | null
 }
 
 // A reducer action is either a UI event {type,payload} or a frame-derived action.

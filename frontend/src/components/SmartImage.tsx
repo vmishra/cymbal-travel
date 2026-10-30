@@ -8,8 +8,11 @@ export function SmartImage({ src, seed, className = '', alt = '' }: {
 }) {
   const [loaded, setLoaded] = useState(false)
   const [tries, setTries] = useState(0)
-  const showImg = !!src && tries <= 8
-  const url = src ? `${src}${tries ? `?r=${tries}` : ''}` : ''
+  // Only load an actual URL. Sentinels like `grad:flight-0` mean "gradient only,
+  // no photo" — treating them as a src renders a broken <img>.
+  const isUrl = !!src && (src.startsWith('http') || src.startsWith('/'))
+  const showImg = isUrl && tries <= 8
+  const url = isUrl ? `${src}${tries ? `?r=${tries}` : ''}` : ''
   return (
     <div className={`relative overflow-hidden ${className}`} style={{ background: sceneFor(seed) }}>
       {showImg && (

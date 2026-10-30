@@ -17,10 +17,19 @@ const SLOT_LABEL: Record<Slot, string> = { morning: '🌅 Morning', afternoon: '
 
 function TransitHop({ a, b }: { a: string; b: string }) {
   const t = transitBetween(a, b)
+  const [color, level] = t.mins < 12 ? ['#34a853', 'light'] : t.mins < 20 ? ['#f9ab00', 'moderate'] : ['#ea4335', 'heavy']
   return (
     <div className="flex items-center gap-2 py-1 pl-4 text-[11px] text-muted">
       <span className="h-5 w-px rounded bg-line" />
-      <span className="rounded-full bg-paper px-2 py-0.5 ring-1 ring-line">{t.icon} {t.label} · {t.mins} min</span>
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-paper px-2 py-0.5 ring-1 ring-line">
+        <span>{t.icon} {t.label} · {t.mins} min</span>
+        <span className="dotflow inline-flex items-center gap-0.5" aria-hidden>
+          <span className="h-1 w-1 rounded-full" style={{ background: color }} />
+          <span className="h-1 w-1 rounded-full" style={{ background: color }} />
+          <span className="h-1 w-1 rounded-full" style={{ background: color }} />
+        </span>
+        <span style={{ color }}>{level} traffic</span>
+      </span>
     </div>
   )
 }
@@ -84,15 +93,17 @@ function DayView({ day, weather, lastChangedId, onOpen }: { day: Day; weather?: 
   )
 }
 
-export function ItineraryPane({ trip, weather, cost, packing, lastChangedId }: {
+export function ItineraryPane({ trip, weather, cost, packing, lastChangedId, onOpen }: {
   trip: Trip
   weather: Record<string, Weather>
   cost: Cost | null
   packing: Packing | null
   lastChangedId: string | null
+  onOpen?: (item: Item) => void
 }) {
   const [tab, setTab] = useState(0) // 0 = overview, 1..N = day
   const [detail, setDetail] = useState<Item | null>(null)
+  const open: OpenFn = onOpen ?? setDetail // onOpen (drive the map) wins; else a local modal
   useEffect(() => { if (tab > trip.days.length) setTab(0) }, [trip.days.length, tab])
 
   return (
@@ -111,19 +122,19 @@ export function ItineraryPane({ trip, weather, cost, packing, lastChangedId }: {
             {trip.days.map((d) => (
               <div key={d.index} className="border-t border-line pt-4 first:border-0 first:pt-0">
                 <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted">Day {d.index + 1}</div>
-                <DayView day={d} weather={weather[d.city]} lastChangedId={lastChangedId} onOpen={setDetail} />
+                <DayView day={d} weather={weather[d.city]} lastChangedId={lastChangedId} onOpen={open} />
               </div>
             ))}
             {packing && <PackingPanel packing={packing} />}
             <TipsPanel />
           </div>
         ) : trip.days[tab - 1] ? (
-          <DayView day={trip.days[tab - 1]} weather={weather[trip.days[tab - 1].city]} lastChangedId={lastChangedId} onOpen={setDetail} />
+          <DayView day={trip.days[tab - 1]} weather={weather[trip.days[tab - 1].city]} lastChangedId={lastChangedId} onOpen={open} />
         ) : (
           <div className="py-16 text-center text-muted">Select a day.</div>
         )}
       </div>
-      {detail && <DetailModal item={detail} onClose={() => setDetail(null)} />}
+      {!onOpen && detail && <DetailModal item={detail} onClose={() => setDetail(null)} />}
     </div>
   )
 }

@@ -1,26 +1,30 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { StaticRouteMap } from './StaticRouteMap'
-import { TripMap } from './TripMap'
-
-const pins = [
-  { city: 'Bangalore', lat: 12.97, lng: 77.59 },
-  { city: 'Tokyo', lat: 35.68, lng: 139.65 },
-  { city: 'Kyoto', lat: 35.01, lng: 135.77 },
-]
+import { MapCanvas } from './MapCanvas'
+import { GoogleTripMap } from './GoogleTripMap'
+import type { Activity } from '../state/types'
 
 describe('map', () => {
-  it('static route map renders one stop per pin with labels and a route', () => {
-    render(<StaticRouteMap cities={['Tokyo', 'Kyoto']} pins={pins} />)
-    const map = screen.getByTestId('static-map')
-    expect(map.querySelectorAll('[data-stop]').length).toBe(3)
-    expect(map.querySelector('[data-route]')).toBeTruthy()
+  it('MapCanvas renders one pin per stop, with labels and a route', () => {
+    render(<MapCanvas trip={null} weather={{}} cities={['Tokyo', 'Kyoto']} />)
+    const map = screen.getByTestId('map')
+    expect(map.querySelectorAll('[data-pin]').length).toBe(2)
+    expect(map.querySelector('path[d]')).toBeTruthy()
     expect(screen.getByText('Tokyo')).toBeInTheDocument()
     expect(screen.getByText('Kyoto')).toBeInTheDocument()
   })
 
-  it('TripMap falls back to the static map when no API key is set', () => {
-    render(<TripMap cities={['Tokyo']} pins={pins} />)
-    expect(screen.getByTestId('static-map')).toBeInTheDocument()
+  it('GoogleTripMap surfaces a clicked place as a listing overlay on the map', () => {
+    const focus: Activity = {
+      id: 'a1', kind: 'activity', title: 'Traditional tea-ceremony experience',
+      city: 'Kyoto', price_inr: 3000, description: 'A quiet machiya tea house.',
+    }
+    render(
+      <GoogleTripMap apiKey="test-key" trip={null} weather={{}} cities={['Kyoto']}
+        focus={focus} onClearFocus={() => {}} />,
+    )
+    const listing = screen.getByTestId('map-listing')
+    expect(listing).toHaveTextContent('Traditional tea-ceremony experience')
+    expect(listing).toHaveTextContent('Kyoto')
   })
 })
