@@ -4,8 +4,8 @@ A voice-controlled travel planner + post-sale support demo showcasing Gemini 3.8
 Live and a visible agentic-orchestration story. Brand-neutral ("Cymbal Travels"),
 Google-colors-light, flights/hotels mocked. Real voice; everything else mocked.
 
-See `docs/design/` for the design and `docs/design/` for the
-implementation plan.
+See `DEMO_GUIDE.md` for the presenter script (pre-sale, post-sale and the
+architecture walkthrough).
 
 ## Prerequisites
 - Python 3.13 + [uv](https://docs.astral.sh/uv/), Node 20+ / npm.
